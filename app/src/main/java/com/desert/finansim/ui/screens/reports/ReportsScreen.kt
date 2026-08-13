@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.item
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -27,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.desert.finansim.domain.DateUtils
+import com.desert.finansim.domain.Money
 import com.desert.finansim.ui.components.CategoryDonutChart
 import com.desert.finansim.ui.components.IncomeExpenseBarChart
 import com.desert.finansim.ui.components.NetBarChart
@@ -187,7 +187,7 @@ fun ReportsScreen(
                 if (state.debtStatistics.totalMinor > 0) {
                     Spacer(Modifier.height(14.dp))
                     ProgressRow(
-                        progress = com.desert.finansim.domain.Money.percent(
+                        progress = Money.percent(
                             state.debtStatistics.paidMinor,
                             state.debtStatistics.totalMinor,
                         ),
