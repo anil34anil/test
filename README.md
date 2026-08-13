@@ -233,8 +233,8 @@ türetilir. Böylece iki kaynak arasında tutarsızlık oluşamaz.
 sürümünden `2`'ye geçişte tek seferlik bir istisna yapıldı: uygulama
 basitleştirilirken 4 tablo tamamen kalktı ve kalan tablolardan sütunlar
 silindi; o noktada cihazlarda henüz gerçek kullanıcı verisi olmadığından
-elle migration yazmak yerine `fallbackToDestructiveMigration(dropAllTables =
-true)` tercih edildi. **Bu istisna yalnızca 1→2 geçişi içindir** — `VERSION`
+elle migration yazmak yerine `fallbackToDestructiveMigration()` tercih
+edildi. **Bu istisna yalnızca 1→2 geçişi içindir** — `VERSION`
 3 ve sonrasında şema değişirse `FinansimDatabase.MIGRATIONS` dizisine gerçek
 bir `Migration` eklenmelidir.
 

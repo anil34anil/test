@@ -46,7 +46,8 @@ abstract class FinansimDatabase : RoomDatabase() {
          * VERSION 1 -> 2 ISTISNASI: Uygulama "sadece temel ozellikler"
          * kapsamina indirgenirken (bütçe, sabit gider, kredi kartı, alacak
          * tabloları kaldırıldı) buradaki genel ilkeye bilinçli bir istisna
-         * yapılıp fallbackToDestructiveMigration() kullanıldı (aşağıda).
+         * yapılıp fallbackToDestructiveMigration() kullanıldı (aşağıda; Room
+         * 2.6.1'de bu fonksiyonun parametresiz sürümü kullanılabilir).
          * Gerekçe: bu değişiklik yapıldığı sırada üretimde henüz gerçek
          * kullanıcı verisi yoktu (uygulama yeni kurulmuştu) ve cihaz/emülatör
          * erişimi olmadan elle yazılmış bir DROP+CREATE migration'ı güvenle
@@ -68,7 +69,7 @@ abstract class FinansimDatabase : RoomDatabase() {
         private fun build(context: Context): FinansimDatabase =
             Room.databaseBuilder(context, FinansimDatabase::class.java, DB_NAME)
                 .addMigrations(*MIGRATIONS)
-                .fallbackToDestructiveMigration(dropAllTables = true)
+                .fallbackToDestructiveMigration()
                 .addCallback(object : Callback() {
                     override fun onOpen(db: SupportSQLiteDatabase) {
                         super.onOpen(db)
