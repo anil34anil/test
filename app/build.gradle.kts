@@ -73,6 +73,7 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.work.runtime.ktx)
 

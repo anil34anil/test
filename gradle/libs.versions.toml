@@ -2,11 +2,13 @@
 agp = "8.7.3"
 kotlin = "2.0.21"
 coreKtx = "1.15.0"
+activityKtx = "1.9.3"
 webkit = "1.12.1"
 work = "2.10.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "activityKtx" }
 androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
 
