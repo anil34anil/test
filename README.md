@@ -9,21 +9,34 @@ tüm veriler yalnızca cihazda saklanır ve uygulamanın **internet izni yoktur*
 
 ---
 
-## ⚠️ Derleme durumu — önce bunu okuyun
+## 📱 APK'yı indir (bilgisayar gerekmez)
 
-Bu proje **kaynak kod olarak tamamdır**, ancak geliştirildiği ortamda derlenememiştir:
-o ortamın ağ politikası `dl.google.com` adresini engelliyor ve Android SDK
-platformu, build-tools ve Android Gradle Plugin **yalnızca** oradan indirilebiliyor.
+Her push'ta GitHub Actions uygulamayı derler, testleri çalıştırır ve imzalı
+release APK'yı aynı adrese yükler:
 
-Bunun pratik anlamı:
+**https://github.com/anil34anil/test/releases/download/apk-latest/finansim.apk**
 
-- Kod **derleyiciden geçirilmemiştir**; ilk `assembleDebug` çalıştırmasında
-  düzeltilmesi gereken derleme hataları çıkabilir.
-- Aşağıdaki komutlar Android SDK'sı kurulu **sizin makinenizde** çalışacak
-  şekilde yazılmıştır ve APK üretimi orada yapılmalıdır.
+Telefonda linke dokunun → indirin → açın. Android "bilinmeyen kaynaklardan
+kurulum" izni isterse tarayıcınıza bu izni verin. Link sabittir; her zaman en
+son derlemeyi verir.
 
-Android Studio'da projeyi açıp `Build > Make Project` demek, kalan hataları
-görmenin en hızlı yoludur.
+İş akışı: [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml)
+
+### İmzalama anahtarı nerede?
+
+Depo public olduğu için imzalama anahtarı **repoya konmamıştır** — konsaydı
+herkes bu uygulama adına APK imzalayabilirdi. Anahtar ilk derlemede üretilip
+GitHub Actions cache'inde saklanır; sonraki derlemeler aynı anahtarı kullanır,
+böylece yeni sürümler mevcut kurulumun üzerine güncelleme olarak iner.
+
+Uzun süre derleme yapılmazsa cache düşebilir ve yeni bir anahtar üretilir. Bu
+durumda yeni APK "farklı imza" hatası verir; uygulamayı kaldırıp yeniden
+kurmanız gerekir. Önce **Ayarlar → Verileri yedekle** ile JSON yedeği alın,
+kurulumdan sonra geri yükleyin.
+
+Kalıcı bir anahtar isterseniz kendi keystore'unuzu üretip `ANDROID_KEYSTORE_BASE64`
+gibi bir GitHub secret'ına koyabilir ve iş akışını onu kullanacak şekilde
+değiştirebilirsiniz.
 
 ---
 
@@ -131,15 +144,16 @@ keyPassword=ANAHTAR_PAROLASI
 
 ### Kod küçültme (R8) hakkında
 
-Release yapılandırmasında `isMinifyEnabled = false` bırakıldı. Sebep: proje bu
-ortamda derlenip test edilemediği için, doğrulanmamış R8 kurallarının çalışma
-anında Room/Compose/serialization tarafında çökmeye yol açma riski var. APK'nın
-kurulabilir ve çalışır olması önceliklendirildi.
+Release yapılandırmasında `isMinifyEnabled = false` bırakıldı: doğrulanmamış R8
+kurallarının çalışma anında Room/Compose/serialization tarafında çökmeye yol
+açma riski var, APK'nın kurulabilir ve çalışır olması önceliklendirildi.
+Şu anki APK ~12,8 MB.
 
-Uygulamayı bir kez sorunsuz çalıştırdıktan sonra `app/build.gradle.kts` içinde
-`isMinifyEnabled = true` yapıp APK boyutunu küçültebilirsiniz; gerekli keep
-kuralları `app/proguard-rules.pro` dosyasında hazır bekliyor. Açtıktan sonra
-release APK'yı cihazda mutlaka bir kez baştan sona test edin.
+Boyutu küçültmek isterseniz `app/build.gradle.kts` içinde
+`isMinifyEnabled = true` yapın; gerekli keep kuralları
+`app/proguard-rules.pro` dosyasında hazır bekliyor. Açtıktan sonra release
+APK'yı cihazda mutlaka baştan sona test edin — R8 sorunları yalnızca çalışma
+anında ortaya çıkar, derleme yeşil görünür.
 
 ## APK'yı cihaza kurma
 
@@ -230,7 +244,9 @@ dosyanın içinde yorumda mevcuttur).
 ./gradlew test
 ```
 
-`app/src/test/` altında şartnamedeki kabul senaryoları test edilir:
+`app/src/test/` altında şartnamedeki kabul senaryoları test edilir. Her CI
+derlemesinde çalışır; 30 testin tamamı geçmektedir. Testler kırmızıysa iş akışı
+da kırmızıya döner (APK yine üretilir ama sonuç gizlenmez):
 
 | Test | Senaryo |
 |---|---|
