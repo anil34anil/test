@@ -67,10 +67,21 @@ jobs:
       - name: gradlew calistirilabilir yap
         run: chmod +x ./gradlew
 
+      # Test hatasi APK uretimini engellemesin, ama sonuc gizlenmesin:
+      # is akisi sonunda ayrica basarisiz olarak isaretlenir (asagida).
       - name: Birim testleri calistir
         id: tests
         continue-on-error: true
         run: ./gradlew test --no-daemon --stacktrace
+
+      - name: Test raporunu yukle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-raporu
+          path: app/build/reports/tests/
+          retention-days: 14
+          if-no-files-found: ignore
 
       - name: Release APK uret
         run: ./gradlew assembleRelease --no-daemon --stacktrace
@@ -116,3 +127,11 @@ jobs:
               --notes "$NOTES"
           fi
           echo "Indirme linki: https://github.com/${{ github.repository }}/releases/download/$TAG/finansim.apk"
+
+      # APK yayinlandiktan SONRA calisir: testler kirmiziysa is akisi da
+      # kirmizi gorunsun, "yesil" sanip gecilmesin.
+      - name: Test sonucunu dogrula
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "::error::Birim testler basarisiz. APK yine de uretildi, ama test raporunu inceleyin."
+          exit 1

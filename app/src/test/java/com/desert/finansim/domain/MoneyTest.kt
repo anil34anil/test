@@ -38,7 +38,8 @@ class MoneyTest {
         assertEquals(1_000_000L, Money.parse("10.000"))
         assertEquals(1_000_050L, Money.parse("10.000,50"))
         assertEquals(1_000_050L, Money.parse("10000,50"))
-        assertEquals(1_000_500L, Money.parse("10000,5"))
+        // "10000,5" -> 10.000,50 TL: tek haneli ondalik "50 kurus" demektir.
+        assertEquals(1_000_050L, Money.parse("10000,5"))
         assertEquals(125_000L, Money.parse("1.250"))
     }
 
