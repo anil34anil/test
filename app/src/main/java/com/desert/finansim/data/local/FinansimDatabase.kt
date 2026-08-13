@@ -16,7 +16,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         InstallmentEntity::class,
     ],
     version = FinansimDatabase.VERSION,
-    exportSchema = true,
+    exportSchema = false,
 )
 @TypeConverters(Converters::class)
 abstract class FinansimDatabase : RoomDatabase() {
