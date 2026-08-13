@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Ay Sonu</title>
+<meta name="description" content="Aylık gelir, gider ve taksitlerini takip et; ay sonunda ne kaldığını gör." />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Ay Sonu" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#E7EEDF" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#12160D" media="(prefers-color-scheme: dark)" />
+<style>
+  :root {
+    --bg: #E7EEDF;
+    --surface: #F8FAF4;
+    --surface-alt: #E2E8D6;
+    --ink: #20261F;
+    --ink-soft: #5B6656;
+    --line: #C9D2BE;
+    --accent: #B5732A;
+    --accent-ink: #7A4A16;
+    --positive: #3F7D53;
+    --negative: #B23B3B;
+    --shadow: rgba(32, 38, 31, 0.16);
+
+    --font-display: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12160D;
+      --surface: #1B2114;
+      --surface-alt: #232B1B;
+      --ink: #E9EFE0;
+      --ink-soft: #9FAB92;
+      --line: #333F29;
+      --accent: #E2A467;
+      --accent-ink: #F2C68F;
+      --positive: #74C48C;
+      --negative: #E28686;
+      --shadow: rgba(0, 0, 0, 0.55);
+    }
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+
+  html, body { margin: 0; padding: 0; height: 100%; overscroll-behavior-y: none; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    background-image: repeating-linear-gradient(
+      to bottom, transparent, transparent 27px, var(--line) 27px, var(--line) 28px
+    );
+  }
+
+  .app {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    max-width: 480px;
+    width: 100%;
+    margin: 0 auto;
+    padding: calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 6px);
+    min-height: 100dvh;
+  }
+
+  .notif-banner {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 10px);
+    left: 16px;
+    right: 16px;
+    max-width: 448px;
+    margin: 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 12px 12px 14px;
+    box-shadow: 0 16px 32px -10px var(--shadow);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    transform: translateY(-160%);
+    opacity: 0;
+    transition: transform 0.32s ease, opacity 0.32s ease;
+    z-index: 20;
+  }
+
+  .notif-banner[hidden] { display: none; }
+  .notif-banner.show { transform: translateY(0); opacity: 1; }
+
+  .notif-icon { font-size: 1.1rem; line-height: 1.3; }
+  .notif-body { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .notif-title { font-size: 0.82rem; font-weight: 700; }
+  .notif-text { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.4; }
+  .notif-close { background: none; border: none; color: var(--ink-soft); cursor: pointer; font-size: 1rem; padding: 0 2px; }
+
+  .app-topbar {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    flex: 0 0 auto;
+    padding-bottom: 10px;
+  }
+
+  .app-name { font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .app-month { font-size: 0.8rem; color: var(--ink-soft); letter-spacing: 0.02em; }
+
+  .bell-btn {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--ink);
+  }
+
+  .tab-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: 10px;
+  }
+
+  .tab-content[hidden] { display: none; }
+
+  input[type="number"], input[type="text"] {
+    font: inherit;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 11px 12px;
+    color: var(--ink);
+    width: 100%;
+  }
+
+  #entry-note, #inst-name, .edit-note { font-family: var(--font-body); }
+
+  input:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .balance-card {
+    flex: 0 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: 0 10px 28px -18px var(--shadow);
+  }
+
+  .result-label, .section-label {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+  }
+
+  .result-value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 2.4rem;
+    font-weight: 600;
+    color: var(--accent-ink);
+  }
+
+  .result-value.positive { color: var(--positive); }
+  .result-value.negative { color: var(--negative); }
+
+  .balance-sub {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.76rem;
+    color: var(--ink-soft);
+  }
+
+  .add-form, .inst-form {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px;
+  }
+
+  .type-toggle { display: flex; gap: 6px; }
+
+  .chip {
+    font: inherit;
+    font-size: 0.84rem;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+
+  .chip.active { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 600; }
+
+  .amount-row, .inst-form-row { display: flex; gap: 8px; }
+  .amount-row input { flex: 1; }
+  .inst-form-row input { flex: 1; min-width: 0; }
+
+  button[type="submit"] {
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.88rem;
+    padding: 11px 16px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: var(--surface);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .entry-list { list-style: none; margin: 0; padding: 0; flex: 0 0 auto; }
+
+  .entry-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 2px;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.9rem;
+  }
+
+  .row-note {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ink-soft);
+  }
+
+  .taksit-row .row-note { color: var(--ink); }
+
+  .row-badge {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--surface-alt);
+    border-radius: 999px;
+    padding: 2px 8px;
+    color: var(--ink-soft);
+    flex: 0 0 auto;
+  }
+
+  .row-amount { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; flex: 0 0 auto; }
+
+  .row-edit, .row-del {
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-size: 0.95rem;
+    padding: 4px;
+    flex: 0 0 auto;
+  }
+
+  .entry-row.editing .edit-note { flex: 1; }
+  .entry-row.editing .edit-amount { width: 84px; }
+
+  .row-save, .row-cancel {
+    font-size: 0.76rem;
+    padding: 7px 9px;
+    border-radius: 8px;
+    cursor: pointer;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .row-save { border: none; background: var(--accent); color: var(--surface); font-weight: 600; }
+  .row-cancel { border: 1px solid var(--line); background: transparent; color: var(--ink-soft); }
+
+  .empty-note { color: var(--ink-soft); font-size: 0.86rem; padding: 10px 2px; }
+
+  .positive { color: var(--positive); }
+  .negative { color: var(--negative); }
+
+  .inst-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    flex: 0 0 auto;
+  }
+
+  .inst-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.94rem; font-weight: 600; }
+  .inst-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .inst-badge {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.72rem;
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px 9px;
+    color: var(--ink-soft);
+    flex: 0 0 auto;
+  }
+
+  .inst-badge.done { color: var(--positive); border-color: var(--positive); }
+
+  .inst-del {
+    background: none; border: none; color: var(--ink-soft); cursor: pointer;
+    font-size: 1rem; line-height: 1; padding: 2px 4px; flex: 0 0 auto;
+  }
+  .inst-del:hover { color: var(--negative); }
+
+  .progress-track { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+
+  .inst-meta {
+    display: flex; justify-content: space-between; font-size: 0.78rem;
+    color: var(--ink-soft); font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  }
+
+  .mark-paid {
+    align-self: flex-start;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent-ink);
+    border-radius: 8px;
+    padding: 7px 11px;
+    cursor: pointer;
+  }
+
+  .mark-paid:disabled { opacity: 0.5; cursor: default; border-color: var(--line); color: var(--ink-soft); }
+
+  .inst-form-title { font-size: 0.8rem; color: var(--ink-soft); margin: 2px 0 0; }
+
+  .hist-note { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.5; flex: 0 0 auto; }
+
+  .hist-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 0 0 auto;
+  }
+
+  .hist-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 0.92rem; font-weight: 600; }
+  .hist-net { font-family: var(--font-mono); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+  .hist-sub { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 0.76rem; color: var(--ink-soft); }
+
+  .tab-bar {
+    display: flex;
+    border-top: 1px solid var(--line);
+    flex: 0 0 auto;
+    margin-top: 8px;
+    padding-top: 2px;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 10px 4px 8px;
+    font: inherit;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+
+  .tab-btn.active { color: var(--accent-ink); font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="notif-banner" id="notif-banner" hidden>
+    <span class="notif-icon">🔔</span>
+    <div class="notif-body">
+      <span class="notif-title">Ay Sonu</span>
+      <span class="notif-text" id="notif-text"></span>
+    </div>
+    <button class="notif-close" id="notif-close" aria-label="Kapat">×</button>
+  </div>
+
+  <div class="app">
+    <div class="app-topbar">
+      <span class="app-name">Ay Sonu</span>
+      <div class="topbar-right">
+        <span class="app-month" id="month-label"></span>
+        <button class="bell-btn" id="bell-btn" aria-label="Taksit hatırlatmasını önizle">🔔</button>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-home">
+      <div class="balance-card">
+        <span class="result-label">Bu ay kalan</span>
+        <span class="result-value" id="home-remaining">0 ₺</span>
+        <span class="balance-sub" id="home-sub"></span>
+      </div>
+
+      <form class="add-form" id="add-form">
+        <div class="type-toggle" role="group" aria-label="Tür seç">
+          <button type="button" class="chip active" data-type="income">Gelir</button>
+          <button type="button" class="chip" data-type="expense">Gider</button>
+        </div>
+        <input type="text" id="entry-note" placeholder="Ne için? (opsiyonel)" />
+        <div class="amount-row">
+          <input type="number" inputmode="decimal" id="entry-amount" placeholder="Tutar" required />
+          <button type="submit">Ekle</button>
+        </div>
+      </form>
+
+      <ul class="entry-list" id="entry-list"></ul>
+    </div>
+
+    <div class="tab-content" id="tab-installments" hidden>
+      <span class="section-label">Aktif ve biten taksitler</span>
+      <div id="inst-list"></div>
+
+      <form class="inst-form" id="inst-form">
+        <p class="inst-form-title">Yeni taksitli gider</p>
+        <input type="text" id="inst-name" placeholder="Ne için? (örn. Buzdolabı)" required />
+        <div class="inst-form-row">
+          <input type="number" inputmode="decimal" id="inst-monthly" placeholder="Taksit tutarı" required />
+          <input type="number" inputmode="numeric" id="inst-months" placeholder="Taksit sayısı" required />
+        </div>
+        <button type="submit">Taksitli gider ekle</button>
+      </form>
+    </div>
+
+    <div class="tab-content" id="tab-history" hidden>
+      <p class="hist-note" id="hist-note"></p>
+      <div id="hist-list"></div>
+    </div>
+
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-tab="home">🏠 Ana Sayfa</button>
+      <button class="tab-btn" data-tab="installments">📅 Taksitler</button>
+      <button class="tab-btn" data-tab="history">📖 Geçmiş</button>
+    </nav>
+  </div>
+
+<script>
+  // ---------- helpers ----------
+  function formatTRY(n) {
+    var negative = n < 0;
+    var abs = Math.round(Math.abs(n));
+    var s = abs.toLocaleString('tr-TR');
+    return (negative ? '-' : '') + s + ' ₺';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function monthKeyOf(date) {
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+  }
+
+  function monthLabelOf(monthKey) {
+    var parts = monthKey.split('-');
+    var d = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+    var s = d.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
+    return s.charAt(0).toLocaleUpperCase('tr-TR') + s.slice(1);
+  }
+
+  function nextMonthKey(monthKey) {
+    var parts = monthKey.split('-');
+    var y = Number(parts[0]), m = Number(parts[1]);
+    m++;
+    if (m > 12) { m = 1; y++; }
+    return y + '-' + String(m).padStart(2, '0');
+  }
+
+  // ---------- persisted state ----------
+  var STORAGE_KEY = 'aySonuData_v1';
+
+  function defaultState() {
+    return {
+      version: 1,
+      currentMonthKey: monthKeyOf(new Date()),
+      entries: [],
+      nextEntryId: 1,
+      installments: [],
+      nextInstId: 1,
+      history: [],
+      lastReminderMonth: null
+    };
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return defaultState();
+      return Object.assign(defaultState(), parsed);
+    } catch (e) {
+      return defaultState();
+    }
+  }
+
+  function syncToAndroidBridge() {
+    if (window.AndroidBridge && typeof window.AndroidBridge.saveInstallments === 'function') {
+      try {
+        var payload = state.installments
+          .filter(function (p) { return p.paidCount < p.months; })
+          .map(function (p) { return { id: p.id, name: p.name, monthlyAmount: p.monthlyAmount }; });
+        window.AndroidBridge.saveInstallments(JSON.stringify(payload));
+      } catch (e) { /* bridge not usable, ignore */ }
+    }
+  }
+
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    syncToAndroidBridge();
+  }
+
+  var state = loadState();
+
+  function monthlyAmount(plan) { return plan.monthlyAmount; }
+  function totalAmount(plan) { return plan.monthlyAmount * plan.months; }
+  function isActive(plan) { return plan.paidCount < plan.months; }
+
+  // ---------- month rollover: archive past months automatically ----------
+  function applyRollover() {
+    var realMonthKey = monthKeyOf(new Date());
+    var guard = 0;
+    var changed = false;
+
+    while (state.currentMonthKey !== realMonthKey && guard < 240) {
+      guard++;
+      changed = true;
+      var closingKey = state.currentMonthKey;
+
+      var income = state.entries.filter(function (e) { return e.type === 'income'; })
+        .reduce(function (s, e) { return s + e.amount; }, 0);
+      var expense = state.entries.filter(function (e) { return e.type === 'expense'; })
+        .reduce(function (s, e) { return s + e.amount; }, 0);
+      var activePlans = state.installments.filter(isActive);
+      var instDue = activePlans.reduce(function (s, p) { return s + p.monthlyAmount; }, 0);
+
+      state.history.unshift({
+        monthKey: closingKey,
+        label: monthLabelOf(closingKey),
+        income: income,
+        expense: expense,
+        inst: instDue
+      });
+      if (state.history.length > 36) state.history.length = 36;
+
+      state.installments.forEach(function (p) {
+        if (p.paidCount < p.months && p.lastCountedMonth !== closingKey) {
+          p.paidCount = Math.min(p.months, p.paidCount + 1);
+        }
+        p.lastCountedMonth = closingKey;
+      });
+
+      state.entries = [];
+      state.nextEntryId = 1;
+      state.currentMonthKey = nextMonthKey(closingKey);
+    }
+
+    if (changed) saveState();
+  }
+
+  applyRollover();
+
+  document.getElementById('month-label').textContent = monthLabelOf(state.currentMonthKey);
+
+  // ---------- home tab ----------
+  function renderHome() {
+    var incomeTotal = state.entries.filter(function (e) { return e.type === 'income'; })
+      .reduce(function (s, e) { return s + e.amount; }, 0);
+    var expenseTotal = state.entries.filter(function (e) { return e.type === 'expense'; })
+      .reduce(function (s, e) { return s + e.amount; }, 0);
+    var instDue = state.installments.filter(isActive)
+      .reduce(function (s, p) { return s + monthlyAmount(p); }, 0);
+    var remaining = incomeTotal - expenseTotal - instDue;
+
+    var out = document.getElementById('home-remaining');
+    out.textContent = formatTRY(remaining);
+    out.classList.toggle('negative', remaining < 0);
+    out.classList.toggle('positive', remaining >= 0);
+
+    document.getElementById('home-sub').textContent =
+      formatTRY(incomeTotal) + ' gelir − ' + formatTRY(expenseTotal) + ' gider − ' + formatTRY(instDue) + ' taksit';
+
+    var list = document.getElementById('entry-list');
+    var html = '';
+
+    state.installments.filter(isActive).forEach(function (plan) {
+      html += '<li class="entry-row taksit-row">' +
+        '<span class="row-badge">Taksit</span>' +
+        '<span class="row-note">' + escapeHtml(plan.name) + ' (' + (plan.paidCount + 1) + '/' + plan.months + ')</span>' +
+        '<span class="row-amount negative">-' + formatTRY(monthlyAmount(plan)) + '</span>' +
+        '</li>';
+    });
+
+    state.entries.forEach(function (entry) {
+      if (state.editingId === entry.id) {
+        html += '<li class="entry-row editing" data-id="' + entry.id + '">' +
+          '<input type="text" class="edit-note" value="' + escapeHtml(entry.note) + '" />' +
+          '<input type="number" class="edit-amount" value="' + entry.amount + '" />' +
+          '<button type="button" class="row-save">Kaydet</button>' +
+          '<button type="button" class="row-cancel">İptal</button>' +
+          '</li>';
+      } else {
+        var sign = entry.type === 'income' ? '+' : '-';
+        var cls = entry.type === 'income' ? 'positive' : 'negative';
+        html += '<li class="entry-row" data-id="' + entry.id + '">' +
+          '<span class="row-note">' + escapeHtml(entry.note || (entry.type === 'income' ? 'Gelir' : 'Gider')) + '</span>' +
+          '<span class="row-amount ' + cls + '">' + sign + formatTRY(entry.amount) + '</span>' +
+          '<button type="button" class="row-edit" aria-label="Düzenle">✎</button>' +
+          '<button type="button" class="row-del" aria-label="Sil">×</button>' +
+          '</li>';
+      }
+    });
+
+    if (!html) html = '<li class="empty-note">Henüz hareket yok.</li>';
+    list.innerHTML = html;
+  }
+
+  document.querySelectorAll('#add-form .chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      document.querySelectorAll('#add-form .chip').forEach(function (c) { c.classList.remove('active'); });
+      chip.classList.add('active');
+    });
+  });
+
+  function selectedEntryType() {
+    var active = document.querySelector('#add-form .chip.active');
+    return active ? active.dataset.type : 'income';
+  }
+
+  document.getElementById('add-form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var amountInput = document.getElementById('entry-amount');
+    var noteInput = document.getElementById('entry-note');
+    var amount = parseFloat(amountInput.value);
+    if (!amount || amount <= 0) return;
+    state.entries.push({ id: state.nextEntryId++, type: selectedEntryType(), note: noteInput.value.trim(), amount: amount });
+    noteInput.value = '';
+    amountInput.value = '';
+    saveState();
+    renderHome();
+  });
+
+  document.getElementById('entry-list').addEventListener('click', function (ev) {
+    var row = ev.target.closest('.entry-row');
+    if (!row) return;
+    var id = Number(row.dataset.id);
+
+    if (ev.target.closest('.row-edit')) {
+      state.editingId = id;
+      renderHome();
+    } else if (ev.target.closest('.row-del')) {
+      state.entries = state.entries.filter(function (e) { return e.id !== id; });
+      saveState();
+      renderHome();
+    } else if (ev.target.closest('.row-save')) {
+      var noteVal = row.querySelector('.edit-note').value.trim();
+      var amountVal = parseFloat(row.querySelector('.edit-amount').value);
+      var entry = state.entries.find(function (e) { return e.id === id; });
+      if (entry && amountVal > 0) {
+        entry.note = noteVal;
+        entry.amount = amountVal;
+      }
+      state.editingId = null;
+      saveState();
+      renderHome();
+    } else if (ev.target.closest('.row-cancel')) {
+      state.editingId = null;
+      renderHome();
+    }
+  });
+
+  // ---------- installments tab ----------
+  function renderInstallments() {
+    var wrap = document.getElementById('inst-list');
+    var html = '';
+
+    state.installments.forEach(function (plan) {
+      var active = isActive(plan);
+      var pct = Math.round((plan.paidCount / plan.months) * 100);
+      var remainingCount = plan.months - plan.paidCount;
+      var remainingAmount = remainingCount * monthlyAmount(plan);
+
+      html += '<div class="inst-card">' +
+        '<div class="inst-head">' +
+        '<span class="inst-name">' + escapeHtml(plan.name) + '</span>' +
+        '<span class="inst-badge' + (active ? '' : ' done') + '">' + (active ? plan.paidCount + 1 : plan.paidCount) + '/' + plan.months + (active ? '' : ' ✓') + '</span>' +
+        '<button type="button" class="inst-del" data-id="' + plan.id + '" aria-label="Taksiti sil">×</button>' +
+        '</div>' +
+        '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+        '<div class="inst-meta"><span>Aylık ' + formatTRY(monthlyAmount(plan)) + '</span><span>Toplam ' + formatTRY(totalAmount(plan)) + '</span></div>' +
+        '<div class="inst-meta"><span>' + (active ? 'Kalan ' + remainingCount + ' taksit · ' + formatTRY(remainingAmount) : 'Tamamlandı') + '</span></div>' +
+        '<button type="button" class="mark-paid" data-id="' + plan.id + '"' + (active ? '' : ' disabled') + '>' +
+        (active ? 'Bu ayı öde' : 'Ödendi') + '</button>' +
+        '</div>';
+    });
+
+    if (!html) html = '<p class="empty-note">Henüz taksitli gider yok.</p>';
+    wrap.innerHTML = html;
+  }
+
+  document.getElementById('inst-list').addEventListener('click', function (ev) {
+    var payBtn = ev.target.closest('.mark-paid');
+    var delBtn = ev.target.closest('.inst-del');
+
+    if (payBtn && !payBtn.disabled) {
+      var payId = Number(payBtn.dataset.id);
+      var plan = state.installments.find(function (p) { return p.id === payId; });
+      if (plan && plan.paidCount < plan.months) {
+        plan.paidCount++;
+        plan.lastCountedMonth = state.currentMonthKey;
+        saveState();
+        renderInstallments();
+        renderHome();
+      }
+    } else if (delBtn) {
+      var delId = Number(delBtn.dataset.id);
+      state.installments = state.installments.filter(function (p) { return p.id !== delId; });
+      saveState();
+      renderInstallments();
+      renderHome();
+    }
+  });
+
+  document.getElementById('inst-form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var nameInput = document.getElementById('inst-name');
+    var monthlyInput = document.getElementById('inst-monthly');
+    var monthsInput = document.getElementById('inst-months');
+    var name = nameInput.value.trim();
+    var monthly = parseFloat(monthlyInput.value);
+    var months = parseInt(monthsInput.value, 10);
+    if (!name || !monthly || monthly <= 0 || !months || months <= 0) return;
+
+    state.installments.push({
+      id: state.nextInstId++, name: name, monthlyAmount: monthly, months: months,
+      paidCount: 0, lastCountedMonth: null
+    });
+    nameInput.value = '';
+    monthlyInput.value = '';
+    monthsInput.value = '';
+    saveState();
+    renderInstallments();
+    renderHome();
+  });
+
+  // ---------- history tab ----------
+  function renderHistory() {
+    var noteEl = document.getElementById('hist-note');
+    var wrap = document.getElementById('hist-list');
+
+    if (state.history.length === 0) {
+      noteEl.textContent = 'Bir ay tamamlandığında burada otomatik birikmeye başlayacak.';
+      wrap.innerHTML = '';
+      return;
+    }
+
+    noteEl.textContent = 'Geçmiş aylar, her ay bittiğinde kendiliğinden buraya ekleniyor.';
+    var html = '';
+    state.history.forEach(function (m) {
+      var net = m.income - m.expense - m.inst;
+      var cls = net >= 0 ? 'positive' : 'negative';
+      html += '<div class="hist-card">' +
+        '<div class="hist-head"><span>' + escapeHtml(m.label) + '</span>' +
+        '<span class="hist-net ' + cls + '">' + (net >= 0 ? '+' : '') + formatTRY(net) + '</span></div>' +
+        '<span class="hist-sub">' + formatTRY(m.income) + ' gelir − ' + formatTRY(m.expense) + ' gider − ' + formatTRY(m.inst) + ' taksit</span>' +
+        '</div>';
+    });
+    wrap.innerHTML = html;
+  }
+
+  // ---------- tabs ----------
+  var tabIds = { home: 'tab-home', installments: 'tab-installments', history: 'tab-history' };
+
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var tab = btn.dataset.tab;
+      Object.keys(tabIds).forEach(function (key) {
+        document.getElementById(tabIds[key]).hidden = key !== tab;
+      });
+    });
+  });
+
+  // ---------- notifications (best-effort; real push needs the Android app) ----------
+  var swRegistration = null;
+  var NOTIF_SUPPORTED = ('Notification' in window);
+  var bannerTimer = null;
+
+  function hideBanner() {
+    var banner = document.getElementById('notif-banner');
+    banner.classList.remove('show');
+    setTimeout(function () { banner.hidden = true; }, 320);
+  }
+
+  function showInAppBanner(text) {
+    var banner = document.getElementById('notif-banner');
+    document.getElementById('notif-text').textContent = text;
+    banner.hidden = false;
+    requestAnimationFrame(function () { banner.classList.add('show'); });
+    clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(hideBanner, 5000);
+  }
+
+  function fireReminder(body) {
+    if (NOTIF_SUPPORTED && Notification.permission === 'granted') {
+      try {
+        if (swRegistration && swRegistration.showNotification) {
+          swRegistration.showNotification('Ay Sonu', { body: body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' });
+        } else {
+          new Notification('Ay Sonu', { body: body, icon: 'icons/icon-192.png' });
+        }
+        return;
+      } catch (e) { /* fall through */ }
+    }
+    showInAppBanner(body);
+  }
+
+  function activeSummaryText() {
+    var activePlans = state.installments.filter(isActive);
+    if (activePlans.length === 0) return 'Şu an aktif taksit yok.';
+    var total = activePlans.reduce(function (s, p) { return s + p.monthlyAmount; }, 0);
+    var lines = activePlans.map(function (p) { return p.name + ': ' + formatTRY(p.monthlyAmount); }).join(', ');
+    return lines + ' — toplam ' + formatTRY(total);
+  }
+
+  document.getElementById('bell-btn').addEventListener('click', function () {
+    if (NOTIF_SUPPORTED && Notification.permission === 'default') {
+      Notification.requestPermission().then(function () { fireReminder(activeSummaryText()); });
+    } else {
+      fireReminder(activeSummaryText());
+    }
+  });
+
+  document.getElementById('notif-close').addEventListener('click', function () {
+    clearTimeout(bannerTimer);
+    hideBanner();
+  });
+
+  function maybeShowMonthEndReminder() {
+    var day = new Date().getDate();
+    if (day < 20) return;
+    if (state.lastReminderMonth === state.currentMonthKey) return;
+    var activePlans = state.installments.filter(isActive);
+    if (activePlans.length === 0) return;
+    state.lastReminderMonth = state.currentMonthKey;
+    saveState();
+    fireReminder(activeSummaryText());
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(function (reg) {
+      swRegistration = reg;
+    }).catch(function () {});
+  }
+
+  // ---------- init ----------
+  renderHome();
+  renderInstallments();
+  renderHistory();
+  setTimeout(maybeShowMonthEndReminder, 900);
+</script>
+</body>
+</html>
