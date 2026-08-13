@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bildirim ikonu tek renk olmali; sistem beyaza boyar. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFFFF">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,17 L7,17 L7,20 L4,20 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M9.5,12 L12.5,12 L12.5,20 L9.5,20 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M15,6 L18,6 L18,20 L15,20 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3,21.2 L21,21.2 L21,22.6 L3,22.6 Z" />
+</vector>
