@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Finansım</string>
+    <string name="app_name">Ay Sonu</string>
     <string name="notification_channel_reminders">Ödeme Hatırlatmaları</string>
-    <string name="notification_channel_reminders_desc">Yaklaşan ödemeler</string>
+    <string name="notification_channel_reminders_desc">Yaklaşan taksit ödemeleri</string>
 </resources>

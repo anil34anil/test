@@ -16,8 +16,7 @@ import com.desert.finansim.R
 object Notifications {
 
     const val CHANNEL_REMINDERS = "reminders"
-
-    private const val ID_UPCOMING = 1001
+    private const val ID_REMINDER = 1001
 
     fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
@@ -34,12 +33,7 @@ object Notifications {
     fun canNotify(context: Context): Boolean =
         NotificationManagerCompat.from(context).areNotificationsEnabled()
 
-    fun showUpcomingPayments(context: Context, title: String, lines: List<String>) {
-        if (lines.isEmpty()) return
-        show(context, ID_UPCOMING, title, lines)
-    }
-
-    private fun show(context: Context, id: Int, title: String, lines: List<String>) {
+    fun showReminder(context: Context, title: String, body: String) {
         if (!canNotify(context)) return
 
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -47,27 +41,23 @@ object Notifications {
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
-            id,
+            ID_REMINDER,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
-        val style = NotificationCompat.InboxStyle().setBigContentTitle(title)
-        lines.take(5).forEach { style.addLine(it) }
-        if (lines.size > 5) style.setSummaryText("+${lines.size - 5} tane daha")
-
         val notification = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
-            .setContentText(lines.first())
-            .setStyle(style)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
         runCatching {
-            NotificationManagerCompat.from(context).notify(id, notification)
+            NotificationManagerCompat.from(context).notify(ID_REMINDER, notification)
         }
     }
 }

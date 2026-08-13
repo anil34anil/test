@@ -109,7 +109,7 @@ jobs:
         run: |
           set -e
           TAG="apk-latest"
-          NOTES="Finansım — otomatik derlenmiş kurulabilir APK
+          NOTES="Ay Sonu — otomatik derlenmiş kurulabilir APK
 
           Derleme: ${{ github.run_number }}
           Commit: ${{ github.sha }}
@@ -123,7 +123,7 @@ jobs:
             gh release edit "$TAG" --notes "$NOTES"
           else
             gh release create "$TAG" finansim.apk \
-              --title "Finansım APK" \
+              --title "Ay Sonu APK" \
               --notes "$NOTES"
           fi
           echo "Indirme linki: https://github.com/${{ github.repository }}/releases/download/$TAG/finansim.apk"
