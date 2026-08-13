@@ -2,7 +2,6 @@ package com.desert.finansim.ui.screens.transactions
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,7 +21,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -31,15 +29,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.desert.finansim.domain.Money
 import com.desert.finansim.domain.model.CategoryKind
 import com.desert.finansim.domain.model.PaymentMethod
-import com.desert.finansim.domain.model.RecurrenceFrequency
 import com.desert.finansim.domain.model.TransactionType
 import com.desert.finansim.ui.components.AmountField
 import com.desert.finansim.ui.components.ConfirmDialog
@@ -143,44 +138,6 @@ fun TransactionFormScreen(
                         isError = state.targetError != null,
                         placeholder = "Borç seçin",
                     )
-                    if (options.cards.isNotEmpty()) {
-                        DropdownField(
-                            label = "veya Kredi Kartı ekstresi",
-                            options = options.cards,
-                            selected = options.cards.firstOrNull { it.id == state.creditCardId },
-                            optionLabel = { it.name },
-                            onSelect = {
-                                viewModel.setDebt(null)
-                                viewModel.setCreditCard(it.id)
-                            },
-                            placeholder = "Kart seçin",
-                        )
-                    }
-                    if (state.targetError != null) {
-                        Text(
-                            text = state.targetError!!,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                }
-
-                TransactionType.RECEIVABLE_COLLECTION -> {
-                    DropdownField(
-                        label = "Alacak",
-                        options = options.receivables,
-                        selected = options.receivables.firstOrNull {
-                            it.receivable.id == state.receivableId
-                        },
-                        optionLabel = { summary ->
-                            "${summary.receivable.personName} • kalan ${
-                                Money.format(summary.remainingMinor, options.currencySymbol)
-                            }"
-                        },
-                        onSelect = { viewModel.setReceivable(it.receivable.id) },
-                        isError = state.targetError != null,
-                        placeholder = "Alacak seçin",
-                    )
                     if (state.targetError != null) {
                         Text(
                             text = state.targetError!!,
@@ -201,16 +158,6 @@ fun TransactionFormScreen(
                     optionLabel = { it.label },
                     onSelect = viewModel::setPaymentMethod,
                 )
-                if (state.paymentMethod == PaymentMethod.CREDIT_CARD && options.cards.isNotEmpty()) {
-                    DropdownField(
-                        label = "Kart",
-                        options = options.cards,
-                        selected = options.cards.firstOrNull { it.id == state.creditCardId },
-                        optionLabel = { "${it.name}${if (it.bank.isBlank()) "" else " • ${it.bank}"}" },
-                        onSelect = { viewModel.setCreditCard(it.id) },
-                        placeholder = "Kart seçin",
-                    )
-                }
             }
 
             OutlinedTextField(
@@ -228,35 +175,6 @@ fun TransactionFormScreen(
                 minLines = 2,
                 modifier = Modifier.fillMaxWidth(),
             )
-
-            // Duzenli gelir/gider kisayolu
-            if (!state.isEditing &&
-                (state.type == TransactionType.INCOME || state.type == TransactionType.EXPENSE)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Düzenli olarak tekrarlansın", style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            text = "Her dönem otomatik olarak eklenir",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(checked = state.isRecurring, onCheckedChange = viewModel::setRecurring)
-                }
-                if (state.isRecurring) {
-                    DropdownField(
-                        label = "Tekrar sıklığı",
-                        options = RecurrenceFrequency.entries,
-                        selected = state.frequency,
-                        optionLabel = { it.label },
-                        onSelect = viewModel::setFrequency,
-                    )
-                }
-            }
 
             Button(
                 onClick = viewModel::save,

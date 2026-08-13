@@ -16,22 +16,15 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Wallet
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,8 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.desert.finansim.data.backup.RestoreMode
@@ -56,30 +47,19 @@ import com.desert.finansim.ui.containerViewModel
 import com.desert.finansim.work.ReminderWorker
 
 @Composable
-fun SettingsScreen(
-    onOpenCategories: () -> Unit,
-    onOpenRecurring: () -> Unit,
-    onOpenBudget: () -> Unit,
-) {
+fun SettingsScreen() {
     val viewModel = containerViewModel { SettingsViewModel(it) }
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    var showPinDialog by remember { mutableStateOf(false) }
     var showBalanceDialog by remember { mutableStateOf(false) }
 
     val backupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         if (uri != null) viewModel.exportBackup(uri, context.contentResolver)
-    }
-
-    val csvLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("text/csv")
-    ) { uri ->
-        if (uri != null) viewModel.exportCsv(uri, context.contentResolver)
     }
 
     val restoreLauncher = rememberLauncherForActivityResult(
@@ -144,24 +124,6 @@ fun SettingsScreen(
                         Money.format(settings.openingBalanceMinor, settings.currencySymbol),
                     onClick = { showBalanceDialog = true },
                 )
-                SettingRow(
-                    icon = Icons.Default.Repeat,
-                    title = "Sabit gelir & giderler",
-                    subtitle = "Kira, abonelik, düzenli ödemeler",
-                    onClick = onOpenRecurring,
-                )
-                SettingRow(
-                    icon = Icons.Default.Savings,
-                    title = "Bütçeler",
-                    subtitle = "Kategori bazlı aylık limitler",
-                    onClick = onOpenBudget,
-                )
-                SettingRow(
-                    icon = Icons.Default.Category,
-                    title = "Kategoriler",
-                    subtitle = "Gelir ve gider kategorilerini düzenle",
-                    onClick = onOpenCategories,
-                )
             }
         }
 
@@ -203,53 +165,6 @@ fun SettingsScreen(
                             )
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
-                    SettingRow(
-                        icon = Icons.Default.Savings,
-                        title = "Bütçe uyarıları",
-                        subtitle = "Bütçenin %90'ı aşıldığında bildir",
-                        trailing = {
-                            Switch(
-                                checked = settings.budgetAlertsEnabled,
-                                onCheckedChange = viewModel::setBudgetAlerts,
-                            )
-                        },
-                    )
-                }
-            }
-        }
-
-        // --- Guvenlik ------------------------------------------------------
-        item {
-            SectionCard(title = "Güvenlik") {
-                SettingRow(
-                    icon = Icons.Default.Lock,
-                    title = if (settings.hasPin) "PIN kilidi açık" else "PIN kilidi",
-                    subtitle = if (settings.hasPin) {
-                        "Uygulama açılışında PIN sorulur"
-                    } else {
-                        "Uygulamayı 4-8 haneli PIN ile kilitle"
-                    },
-                    onClick = { showPinDialog = true },
-                )
-                if (settings.hasPin) {
-                    SettingRow(
-                        icon = Icons.Default.Fingerprint,
-                        title = "Biyometrik ile aç",
-                        subtitle = "Parmak izi / yüz tanıma",
-                        trailing = {
-                            Switch(
-                                checked = settings.biometricEnabled,
-                                onCheckedChange = viewModel::setBiometricEnabled,
-                            )
-                        },
-                    )
-                    SettingRow(
-                        icon = Icons.Default.Lock,
-                        title = "Kilidi kaldır",
-                        subtitle = "PIN ve biyometrik kapatılır",
-                        onClick = viewModel::clearPin,
-                    )
                 }
             }
         }
@@ -268,12 +183,6 @@ fun SettingsScreen(
                     title = "Yedekten geri yükle",
                     subtitle = "Daha önce aldığın yedeği geri yükle",
                     onClick = { restoreLauncher.launch(arrayOf("application/json", "*/*")) },
-                )
-                SettingRow(
-                    icon = Icons.Default.Description,
-                    title = "İşlemleri CSV olarak dışa aktar",
-                    subtitle = "Excel ile açılabilir dosya",
-                    onClick = { csvLauncher.launch(viewModel.csvFileName()) },
                 )
             }
         }
@@ -316,17 +225,6 @@ fun SettingsScreen(
         )
 
         null -> Unit
-    }
-
-    if (showPinDialog) {
-        PinDialog(
-            hasExistingPin = settings.hasPin,
-            onDismiss = { showPinDialog = false },
-            onSave = { pin ->
-                viewModel.setPin(pin)
-                showPinDialog = false
-            },
-        )
     }
 
     if (showBalanceDialog) {
@@ -380,7 +278,7 @@ private fun RestoreDialog(
             title = { Text("Mevcut veriler silinecek") },
             text = {
                 Text(
-                    "Bu işlem şu andaki tüm işlem, borç, alacak, kart ve bütçe kayıtlarını " +
+                    "Bu işlem şu andaki tüm işlem ve borç kayıtlarını " +
                         "SİLECEK ve yerine yedektekileri koyacak. Bu işlem geri alınamaz."
                 )
             },
@@ -429,74 +327,6 @@ private fun RestoreDialog(
 }
 
 @Composable
-private fun PinDialog(
-    hasExistingPin: Boolean,
-    onDismiss: () -> Unit,
-    onSave: (String) -> Unit,
-) {
-    var pin by remember { mutableStateOf("") }
-    var confirm by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (hasExistingPin) "PIN'i değiştir" else "PIN belirle") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = pin,
-                    onValueChange = { pin = it.filter { ch -> ch.isDigit() }.take(8); error = null },
-                    label = { Text("PIN (4-8 hane)") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = KeyboardType.NumberPassword
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = confirm,
-                    onValueChange = {
-                        confirm = it.filter { ch -> ch.isDigit() }.take(8); error = null
-                    },
-                    label = { Text("PIN tekrar") },
-                    singleLine = true,
-                    isError = error != null,
-                    supportingText = error?.let {
-                        { Text(it, color = MaterialTheme.colorScheme.error) }
-                    },
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = KeyboardType.NumberPassword
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = "PIN'iniz düz metin olarak saklanmaz; yalnızca cihazda üretilen " +
-                        "rastgele bir tuz ile birlikte özeti tutulur.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    when {
-                        pin.length < 4 -> error = "PIN en az 4 haneli olmalı"
-                        pin != confirm -> error = "PIN'ler eşleşmiyor"
-                        else -> onSave(pin)
-                    }
-                }
-            ) { Text("Kaydet") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Vazgeç") } },
-    )
-}
-
-@Composable
 private fun BalanceDialog(
     currencySymbol: String,
     currentMinor: Long,
@@ -505,7 +335,7 @@ private fun BalanceDialog(
 ) {
     var amountText by remember {
         mutableStateOf(
-            if (currentMinor != 0L) Money.format(currentMinor, withSymbol = false) else ""
+            if (currentMinor != 0L) Money.formatRaw(currentMinor) else ""
         )
     }
 

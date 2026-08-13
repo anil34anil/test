@@ -25,9 +25,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.sp
 import com.desert.finansim.domain.DateUtils
 import com.desert.finansim.domain.Money
@@ -38,9 +42,20 @@ import java.time.ZoneOffset
 /**
  * Tutar girisi.
  *
- * Sadece sayisal klavye acilir ve yazildikca binlik ayraci eklenir
- * (10000 -> 10.000). Deger disariya ham metin olarak verilir; kurusa
- * cevirme islemi [Money.parse] ile kaydetme aninda yapilir.
+ * Sadece sayisal klavye acilir. Binlik ayraci (nokta) SADECE ekranda,
+ * [AmountVisualTransformation] araciligiyla gosterilir; alanin gercek
+ * (duzenlenebilir) metni her zaman [Money.sanitizeAmountInput] ile
+ * filtrelenmis ham rakamlar + en fazla bir virguldur, asla nokta icermez.
+ *
+ * Bu ayrim bilerek yapildi: eski tasarimda goruntu metni dogrudan alanin
+ * kendi degerine yaziliyordu, bu da bazi Android klavyelerinde (composing
+ * region tutan IME'lerde) senkron yeniden yazmanin klavyenin arabellegiyle
+ * cakisip yanlis/eksik karakter eklenmesine yol aciyordu (ornegin "400000"
+ * yazarken alanin "4,00" gibi beklenmedik bir degere donmesi). Goruntu ve
+ * duzenlenebilir metni ayirmak bu hata sinifini kaynaginda ortadan kaldirir.
+ *
+ * Deger disariya ham metin olarak verilir; kurusa cevirme islemi
+ * [Money.parse] ile kaydetme aninda yapilir.
  */
 @Composable
 fun AmountField(
@@ -55,7 +70,8 @@ fun AmountField(
 ) {
     OutlinedTextField(
         value = value,
-        onValueChange = { raw -> onValueChange(Money.formatWhileTyping(raw)) },
+        onValueChange = { raw -> onValueChange(Money.sanitizeAmountInput(raw)) },
+        visualTransformation = AmountVisualTransformation(),
         modifier = modifier.fillMaxWidth(),
         label = { Text(label) },
         suffix = { Text(currencySymbol, fontWeight = FontWeight.SemiBold) },
@@ -72,6 +88,24 @@ fun AmountField(
             imeAction = imeAction,
         ),
     )
+}
+
+/**
+ * [AmountField]'in duzenlenebilir metnini (nokta icermeyen ham rakamlar)
+ * ekranda bin ayracli bicimde gosterir. Imleç her zaman metnin sonuna
+ * sabitlenir — tutar alanlarinda ortadan duzenleme ihtiyaci olmadigi icin
+ * (silme/ekleme sondan yapilir) bu, dogru-ama-kirilgan bir offset esleme
+ * yazmaktan cok daha guvenli bir basitlestirmedir.
+ */
+private class AmountVisualTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val display = Money.formatWhileTyping(text.text)
+        val mapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int = display.length
+            override fun transformedToOriginal(offset: Int): Int = text.text.length
+        }
+        return TransformedText(AnnotatedString(display), mapping)
+    }
 }
 
 /** Salt okunur tarih alani; dokununca takvim acilir. */

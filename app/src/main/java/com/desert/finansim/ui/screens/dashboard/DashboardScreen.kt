@@ -18,12 +18,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,7 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,11 +40,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.desert.finansim.domain.DateUtils
 import com.desert.finansim.domain.Money
 import com.desert.finansim.domain.model.TransactionType
-import com.desert.finansim.domain.model.UpcomingKind
 import com.desert.finansim.domain.model.UpcomingPayment
-import com.desert.finansim.ui.components.CircleIcon
 import com.desert.finansim.ui.components.EmptyState
-import com.desert.finansim.ui.components.ProgressRow
 import com.desert.finansim.ui.components.SectionCard
 import com.desert.finansim.ui.components.StatTile
 import com.desert.finansim.ui.components.TransactionRow
@@ -63,9 +57,6 @@ fun DashboardScreen(
     onSeeAllTransactions: () -> Unit,
     onOpenDebts: () -> Unit,
     onOpenDebt: (Long) -> Unit,
-    onOpenCard: (Long) -> Unit,
-    onOpenPlan: () -> Unit,
-    onOpenBudget: () -> Unit,
     onEditTransaction: (Long, TransactionType) -> Unit,
 ) {
     val viewModel = containerViewModel { DashboardViewModel(it) }
@@ -153,60 +144,9 @@ fun DashboardScreen(
             }
         }
 
-        // --- Butce uyarilari ------------------------------------------------
-        if (state.budgetWarnings.isNotEmpty()) {
-            item {
-                SectionCard(
-                    title = "Bütçe uyarısı",
-                    trailing = {
-                        TextButton(onClick = onOpenBudget) { Text("Bütçeler") }
-                    },
-                ) {
-                    state.budgetWarnings.take(3).forEach { status ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = if (status.isExceeded) colors.expense else colors.warning,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    text = status.categoryName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                ProgressRow(
-                                    progress = status.ratio,
-                                    color = if (status.isExceeded) colors.expense else colors.warning,
-                                )
-                            }
-                            Spacer(Modifier.width(10.dp))
-                            Text(
-                                text = "%${(status.ratio * 100).toInt()}",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = if (status.isExceeded) colors.expense else colors.warning,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
         // --- Yaklasan odemeler ----------------------------------------------
         item {
-            SectionCard(
-                title = "Yaklaşan Ödemeler",
-                trailing = {
-                    TextButton(onClick = onOpenPlan) { Text("Aylık plan") }
-                },
-            ) {
+            SectionCard(title = "Yaklaşan Ödemeler") {
                 if (state.upcoming.isEmpty()) {
                     Text(
                         text = "Önümüzdeki 30 gün içinde ödeme görünmüyor.",
@@ -222,11 +162,7 @@ fun DashboardScreen(
                                 { viewModel.markInstallmentPaid(id) }
                             },
                             onClick = {
-                                when {
-                                    payment.debtId != null -> onOpenDebt(payment.debtId)
-                                    payment.creditCardId != null -> onOpenCard(payment.creditCardId)
-                                    else -> onOpenDebts()
-                                }
+                                if (payment.debtId != null) onOpenDebt(payment.debtId) else onOpenDebts()
                             },
                         )
                     }
@@ -242,22 +178,12 @@ fun DashboardScreen(
                     TextButton(onClick = onOpenDebts) { Text("Tümü") }
                 },
             ) {
-                Row(Modifier.fillMaxWidth()) {
-                    StatTile(
-                        label = "Toplam Borç",
-                        amountMinor = state.totalDebtRemainingMinor,
-                        currencySymbol = currency,
-                        valueColor = colors.expense,
-                        modifier = Modifier.weight(1f),
-                    )
-                    StatTile(
-                        label = "Toplam Alacak",
-                        amountMinor = state.totalReceivableRemainingMinor,
-                        currencySymbol = currency,
-                        valueColor = colors.income,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+                StatTile(
+                    label = "Toplam Borç",
+                    amountMinor = state.totalDebtRemainingMinor,
+                    currencySymbol = currency,
+                    valueColor = colors.expense,
+                )
                 Spacer(Modifier.height(14.dp))
                 StatTile(
                     label = "Bu ay ödenecek borç",

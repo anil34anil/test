@@ -181,19 +181,19 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 app/src/main/java/com/desert/finansim/
 ├── FinansimApp.kt              Application: bağımlılık kabı, ilk kurulum, iş planlama
-├── MainActivity.kt             Tek Activity + kilit/onboarding kapısı
+├── MainActivity.kt             Tek Activity + onboarding kapısı
 ├── di/AppContainer.kt          Elle kurulan bağımlılık kabı
 ├── domain/
 │   ├── Money.kt                Kuruş tabanlı para: biçimleme, ayrıştırma, taksit bölme
 │   ├── DateUtils.kt            Türkçe tarih biçimleri, ay anahtarları
-│   └── model/                  Enum'lar ve türetilmiş modeller (özet, plan, bütçe...)
+│   └── model/                  Enum'lar ve türetilmiş modeller (özet, gösterim modelleri...)
 ├── data/
 │   ├── local/                  Room: entity'ler, DAO'lar, converter'lar, veritabanı
-│   ├── repository/             Depolar + analiz/rapor hesaplamaları + tekrar motoru
-│   └── backup/                 JSON yedekleme/geri yükleme ve CSV dışa aktarma
+│   ├── repository/             Depolar + gösterge paneli hesaplamaları
+│   └── backup/                 JSON yedekleme/geri yükleme
 ├── ui/
 │   ├── theme/                  Material 3 renkleri, tipografi, açık/koyu tema
-│   ├── components/             Ortak bileşenler + Canvas ile çizilen grafikler
+│   ├── components/             Ortak bileşenler (tutar alanı, işlem satırı, form alanları...)
 │   ├── navigation/             Rotalar, alt menü, + butonu
 │   └── screens/                Ekranlar (her biri kendi ViewModel'i ile)
 └── work/                       Bildirimler ve günlük WorkManager işi
@@ -212,10 +212,6 @@ yükümlülükleri** ayırmasıdır:
 |---|---|
 | Borç oluşturma (ör. 10.000 TL kredi) | **Hayır** — sadece yükümlülük tanımlanır |
 | Borç/taksit ödeme | Evet — nakit çıkışı (`DEBT_PAYMENT`) |
-| Alacak oluşturma | **Hayır** — gelir değildir |
-| Alacak tahsilatı | Evet — nakit girişi (`RECEIVABLE_COLLECTION`) |
-| Kredi kartıyla harcama | Gider sayılır, **nakitten düşülmez** |
-| Kredi kartı ekstresi ödeme | Evet — nakit çıkışı, kullanılan limiti azaltır |
 
 Bu yüzden ana ekranda "Gider" ile "Borç Ödemesi" ayrı satırlarda gösterilir ve
 **Kalan = Gelir − (Gider + Borç Ödemesi)** olarak hesaplanır.
@@ -227,16 +223,20 @@ zaman ana tutara eşittir.
 
 ### Veri modeli
 
-`categories`, `transactions`, `debts`, `installments`, `credit_cards`,
-`receivables`, `budgets`, `recurring_rules`.
+`categories`, `transactions`, `debts`, `installments`.
 
-Ödenen/tahsil edilen tutarlar için ayrı sütun tutulmaz; bunlar `transactions`
-tablosundan türetilir. Böylece iki kaynak arasında tutarsızlık oluşamaz.
+Ödenen tutarlar için ayrı sütun tutulmaz; bunlar `transactions` tablosundan
+türetilir. Böylece iki kaynak arasında tutarsızlık oluşamaz.
 
-Şema sürümü `FinansimDatabase.VERSION` ile yönetilir. Veri kaybı riski nedeniyle
-`fallbackToDestructiveMigration` **bilerek kullanılmamıştır**; şema değişince
-`FinansimDatabase.MIGRATIONS` dizisine bir `Migration` eklemeniz gerekir (örneği
-dosyanın içinde yorumda mevcuttur).
+Şema sürümü `FinansimDatabase.VERSION` ile yönetilir (şu an `2`). Genel kural
+`fallbackToDestructiveMigration` kullanmamaktır — veri kaybına yol açar. `1`
+sürümünden `2`'ye geçişte tek seferlik bir istisna yapıldı: uygulama
+basitleştirilirken 4 tablo tamamen kalktı ve kalan tablolardan sütunlar
+silindi; o noktada cihazlarda henüz gerçek kullanıcı verisi olmadığından
+elle migration yazmak yerine `fallbackToDestructiveMigration(dropAllTables =
+true)` tercih edildi. **Bu istisna yalnızca 1→2 geçişi içindir** — `VERSION`
+3 ve sonrasında şema değişirse `FinansimDatabase.MIGRATIONS` dizisine gerçek
+bir `Migration` eklenmelidir.
 
 ## Testler
 
@@ -245,26 +245,23 @@ dosyanın içinde yorumda mevcuttur).
 ```
 
 `app/src/test/` altında şartnamedeki kabul senaryoları test edilir. Her CI
-derlemesinde çalışır; 30 testin tamamı geçmektedir. Testler kırmızıysa iş akışı
+derlemesinde çalışır; 20 testin tamamı geçmektedir. Testler kırmızıysa iş akışı
 da kırmızıya döner (APK yine üretilir ama sonuç gizlenmez):
 
 | Test | Senaryo |
 |---|---|
 | `FinancialScenariosTest` | 1: gelir 50.000 / gider 10.000 → net 40.000 |
 | `FinancialScenariosTest` | 2: 12.000 TL borç, 12 taksit, ilki ödenince kalan 11.000 |
-| `FinancialScenariosTest` | 3: 5.000 TL alacaktan 2.000 tahsilat → kalan 3.000 |
-| `FinancialScenariosTest` | 4: 50.000 limit, 5.000 harcama → kalan limit 45.000 |
-| `RecurringScheduleTest` | 5: aylık kira sonraki ayda otomatik oluşur |
+| `FinancialScenariosTest` | Taksit durumu (gecikmiş/bekleyen/ödendi) bugüne göre türetilir |
 | `MoneyTest` | Para biçimleme/ayrıştırma, taksit bölme, kuruş artığı |
+| `MoneyTest` | Tutar alanı girişi temizleme (`sanitizeAmountInput`) hiçbir karakter eklemez — IME bozulmasını önleyen düzeltmenin testi |
 
 ## Güvenlik ve gizlilik
 
 - `AndroidManifest.xml` içinde **`INTERNET` izni yoktur**; uygulama ağ bağlantısı açamaz.
 - Bulut yedeklemesi ve cihaz aktarımı `data_extraction_rules.xml` ile kapatılmıştır.
-- PIN düz metin olarak saklanmaz: cihazda üretilen rastgele bir tuz ile
-  PBKDF2-HMAC-SHA256 (120.000 tur) özeti tutulur, karşılaştırma sabit zamanlıdır.
-- Biyometrik doğrulama sistemin `BiometricPrompt` bileşenine devredilmiştir.
-- JSON yedeğine PIN özeti ve tuz **dahil edilmez**.
+- Uygulama içi PIN/biyometrik kilit yoktur; veriler cihazın kendi ekran
+  kilidiyle korunur.
 
 ## Yedekleme
 
@@ -275,8 +272,6 @@ da kırmızıya döner (APK yine üretilir ama sonuç gizlenmez):
   silinip yedek birebir yerine konur, ayrıca onay istenir).
 - Geri yükleme tek bir veritabanı işlemi içinde yapılır: hata olursa hiçbir şey
   değişmez, mevcut veri olduğu gibi kalır.
-- **Ayarlar → CSV dışa aktar**: işlemleri Excel ile açılabilir biçimde verir
-  (noktalı virgül ayracı ve UTF-8 BOM ile, Türkçe karakterler bozulmaz).
 
 ## Uygulama adını / paket adını değiştirme
 

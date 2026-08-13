@@ -55,6 +55,5 @@ object CategoryIcons {
         TransactionType.INCOME -> Icons.Default.TrendingUp
         TransactionType.EXPENSE -> Icons.Default.ShoppingCart
         TransactionType.DEBT_PAYMENT -> Icons.Default.AccountBalance
-        TransactionType.RECEIVABLE_COLLECTION -> Icons.Default.Payments
     }
 }

@@ -18,7 +18,6 @@ object Notifications {
     const val CHANNEL_REMINDERS = "reminders"
 
     private const val ID_UPCOMING = 1001
-    private const val ID_BUDGET = 1002
 
     fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
@@ -38,11 +37,6 @@ object Notifications {
     fun showUpcomingPayments(context: Context, title: String, lines: List<String>) {
         if (lines.isEmpty()) return
         show(context, ID_UPCOMING, title, lines)
-    }
-
-    fun showBudgetWarnings(context: Context, title: String, lines: List<String>) {
-        if (lines.isEmpty()) return
-        show(context, ID_BUDGET, title, lines)
     }
 
     private fun show(context: Context, id: Int, title: String, lines: List<String>) {

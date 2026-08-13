@@ -59,31 +59,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { container.settingsRepository.setReminderDaysBefore(days) }
     }
 
-    fun setBudgetAlerts(enabled: Boolean) {
-        viewModelScope.launch { container.settingsRepository.setBudgetAlertsEnabled(enabled) }
-    }
-
-    fun setBiometricEnabled(enabled: Boolean) {
-        viewModelScope.launch { container.settingsRepository.setBiometricEnabled(enabled) }
-    }
-
-    fun setPin(pin: String) {
-        viewModelScope.launch {
-            container.settingsRepository.setPin(pin)
-            _message.value = SettingsMessage.Info("PIN kaydedildi")
-        }
-    }
-
-    fun clearPin() {
-        viewModelScope.launch {
-            container.settingsRepository.clearPin()
-            _message.value = SettingsMessage.Info("Uygulama kilidi kaldırıldı")
-        }
-    }
-
     fun backupFileName(): String = container.backupRepository.suggestedFileName()
-
-    fun csvFileName(): String = container.csvExporter.suggestedFileName()
 
     /** Tum veriyi JSON olarak secilen dosyaya yazar. */
     fun exportBackup(uri: Uri, resolver: ContentResolver) {
@@ -94,18 +70,6 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
             },
             successMessage = "Yedek kaydedildi",
             failureMessage = "Yedek kaydedilemedi",
-        )
-    }
-
-    /** Islemleri CSV olarak secilen dosyaya yazar. */
-    fun exportCsv(uri: Uri, resolver: ContentResolver) {
-        runIo(
-            work = {
-                val csv = container.csvExporter.exportTransactions()
-                writeText(resolver, uri, csv)
-            },
-            successMessage = "CSV dosyası kaydedildi",
-            failureMessage = "CSV dışa aktarılamadı",
         )
     }
 
@@ -124,12 +88,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
                 }
                 container.backupRepository.parse(content)
                     .onSuccess { data ->
-                        val summary = buildString {
-                            append("${data.transactions.size} işlem, ")
-                            append("${data.debts.size} borç, ")
-                            append("${data.receivables.size} alacak, ")
-                            append("${data.creditCards.size} kart")
-                        }
+                        val summary = "${data.transactions.size} işlem, ${data.debts.size} borç"
                         _message.value = SettingsMessage.RestorePrompt(data, summary)
                     }
                     .onFailure { error ->

@@ -2,5 +2,5 @@
 <resources>
     <string name="app_name">Finansım</string>
     <string name="notification_channel_reminders">Ödeme Hatırlatmaları</string>
-    <string name="notification_channel_reminders_desc">Yaklaşan ödemeler ve bütçe uyarıları</string>
+    <string name="notification_channel_reminders_desc">Yaklaşan ödemeler</string>
 </resources>

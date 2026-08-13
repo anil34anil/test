@@ -85,6 +85,43 @@ class MoneyTest {
     }
 
     @Test
+    fun `sanitizeAmountInput hicbir karakter eklemez sadece filtreler`() {
+        // Kullanicinin yazdigi ham rakamlar hicbir gruplama karakteri almadan geri doner.
+        assertEquals("400000", Money.sanitizeAmountInput("400000"))
+        assertEquals("4", Money.sanitizeAmountInput("4"))
+        assertEquals("40", Money.sanitizeAmountInput("40"))
+        assertEquals("400", Money.sanitizeAmountInput("400"))
+        assertEquals("4000", Money.sanitizeAmountInput("4000"))
+        assertEquals("40000", Money.sanitizeAmountInput("40000"))
+    }
+
+    @Test
+    fun `sanitizeAmountInput ondalik ayracini virgule cevirir ve tek kez birakir`() {
+        assertEquals("1250,75", Money.sanitizeAmountInput("1250.75"))
+        assertEquals("1250,75", Money.sanitizeAmountInput("1250,75"))
+        // Ikinci ondalik ayraci yok sayilir.
+        assertEquals("1250,75", Money.sanitizeAmountInput("1250,75,9"))
+        // Kurus en fazla iki hane.
+        assertEquals("1250,75", Money.sanitizeAmountInput("1250,759"))
+    }
+
+    @Test
+    fun `sanitizeAmountInput bos ve gecersiz girdide bos doner`() {
+        assertEquals("", Money.sanitizeAmountInput(""))
+        assertEquals("", Money.sanitizeAmountInput("abc"))
+        // Tam kisim yokken ondalik ayraci kabul edilmez.
+        assertEquals("", Money.sanitizeAmountInput(","))
+    }
+
+    @Test
+    fun `formatRaw gruplama noktasi icermez`() {
+        assertEquals("400000", Money.formatRaw(40_000_000L))
+        assertEquals("400,50", Money.formatRaw(40_050L))
+        assertEquals("0", Money.formatRaw(0L))
+        assertEquals("-1250", Money.formatRaw(-125_000L))
+    }
+
+    @Test
     fun `yuzde hesabi sinirlarda guvenli`() {
         assertEquals(0f, Money.percent(50L, 0L), 0.0001f)
         assertEquals(0.5f, Money.percent(50L, 100L), 0.0001f)

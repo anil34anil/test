@@ -3,8 +3,6 @@ package com.desert.finansim.ui.screens.transactions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.desert.finansim.data.local.CategoryEntity
-import com.desert.finansim.data.local.CreditCardEntity
-import com.desert.finansim.data.local.RecurringRuleEntity
 import com.desert.finansim.data.local.TransactionEntity
 import com.desert.finansim.di.AppContainer
 import com.desert.finansim.domain.DateUtils
@@ -12,8 +10,6 @@ import com.desert.finansim.domain.Money
 import com.desert.finansim.domain.model.CategoryKind
 import com.desert.finansim.domain.model.DebtSummary
 import com.desert.finansim.domain.model.PaymentMethod
-import com.desert.finansim.domain.model.RecurrenceFrequency
-import com.desert.finansim.domain.model.ReceivableSummary
 import com.desert.finansim.domain.model.TransactionType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -34,11 +30,7 @@ data class TransactionFormState(
     val date: LocalDate = DateUtils.today(),
     val categoryId: Long? = null,
     val paymentMethod: PaymentMethod = PaymentMethod.CASH,
-    val creditCardId: Long? = null,
     val debtId: Long? = null,
-    val receivableId: Long? = null,
-    val isRecurring: Boolean = false,
-    val frequency: RecurrenceFrequency = RecurrenceFrequency.MONTHLY,
     val isEditing: Boolean = false,
     val amountError: String? = null,
     val targetError: String? = null,
@@ -48,9 +40,7 @@ data class TransactionFormState(
 
 data class TransactionFormOptions(
     val categories: List<CategoryEntity> = emptyList(),
-    val cards: List<CreditCardEntity> = emptyList(),
     val debts: List<DebtSummary> = emptyList(),
-    val receivables: List<ReceivableSummary> = emptyList(),
     val currencySymbol: String = Money.DEFAULT_SYMBOL,
 )
 
@@ -65,12 +55,10 @@ class TransactionFormViewModel(
 
     val options: StateFlow<TransactionFormOptions> = combine(
         container.categoryRepository.activeCategories,
-        container.creditCardRepository.activeCards,
         container.debtRepository.debtSummaries.map { list -> list.filter { !it.debt.isClosed } },
-        container.receivableRepository.summaries.map { list -> list.filter { !it.receivable.isClosed } },
         container.settingsRepository.currencySymbol,
-    ) { categories, cards, debts, receivables, currency ->
-        TransactionFormOptions(categories, cards, debts, receivables, currency)
+    ) { categories, debts, currency ->
+        TransactionFormOptions(categories, debts, currency)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -86,18 +74,13 @@ class TransactionFormViewModel(
             val transaction = container.transactionRepository.getById(transactionId) ?: return@launch
             _state.value = TransactionFormState(
                 type = transaction.type,
-                amountText = Money.format(
-                    transaction.amountMinor,
-                    withSymbol = false,
-                ),
+                amountText = Money.formatRaw(transaction.amountMinor),
                 title = transaction.title,
                 note = transaction.note,
                 date = DateUtils.fromEpochDay(transaction.date),
                 categoryId = transaction.categoryId,
                 paymentMethod = transaction.paymentMethod,
-                creditCardId = transaction.creditCardId,
                 debtId = transaction.debtId,
-                receivableId = transaction.receivableId,
                 isEditing = true,
             )
         }
@@ -124,37 +107,17 @@ class TransactionFormViewModel(
     }
 
     fun setPaymentMethod(method: PaymentMethod) {
-        _state.value = _state.value.copy(
-            paymentMethod = method,
-            // Kredi karti secilmediyse kart baglantisini temizle.
-            creditCardId = if (method == PaymentMethod.CREDIT_CARD) _state.value.creditCardId else null,
-        )
-    }
-
-    fun setCreditCard(id: Long?) {
-        _state.value = _state.value.copy(creditCardId = id, targetError = null)
+        _state.value = _state.value.copy(paymentMethod = method)
     }
 
     fun setDebt(id: Long?) {
-        _state.value = _state.value.copy(debtId = id, creditCardId = null, targetError = null)
-    }
-
-    fun setReceivable(id: Long?) {
-        _state.value = _state.value.copy(receivableId = id, targetError = null)
-    }
-
-    fun setRecurring(enabled: Boolean) {
-        _state.value = _state.value.copy(isRecurring = enabled)
-    }
-
-    fun setFrequency(frequency: RecurrenceFrequency) {
-        _state.value = _state.value.copy(frequency = frequency)
+        _state.value = _state.value.copy(debtId = id, targetError = null)
     }
 
     /**
      * Kaydeder. Tur ne olursa olsun tutar pozitif olmak zorunda; borc odemesi
-     * ve tahsilat icin hedef kayit secilmis olmali, aksi halde hangi borcun
-     * azaldigi belirsiz kalirdi.
+     * icin hedef borc secilmis olmali, aksi halde hangi borcun azaldigi
+     * belirsiz kalirdi.
      */
     fun save() {
         val current = _state.value
@@ -166,13 +129,8 @@ class TransactionFormViewModel(
             return
         }
 
-        val needsDebtTarget = current.type == TransactionType.DEBT_PAYMENT
-        if (needsDebtTarget && current.debtId == null && current.creditCardId == null) {
+        if (current.type == TransactionType.DEBT_PAYMENT && current.debtId == null) {
             _state.value = current.copy(targetError = "Ödemenin hangi borca ait olduğunu seçin")
-            return
-        }
-        if (current.type == TransactionType.RECEIVABLE_COLLECTION && current.receivableId == null) {
-            _state.value = current.copy(targetError = "Tahsilatın hangi alacağa ait olduğunu seçin")
             return
         }
 
@@ -195,32 +153,9 @@ class TransactionFormViewModel(
                                 current.type == TransactionType.EXPENSE
                         },
                         paymentMethod = current.paymentMethod,
-                        creditCardId = current.creditCardId,
                         debtId = current.debtId,
-                        receivableId = current.receivableId,
                     )
                 )
-
-                // "Düzenli" isaretlendiyse ayni bilgilerle bir sabit kural olustur.
-                if (current.isRecurring && !current.isEditing) {
-                    container.recurringRepository.save(
-                        RecurringRuleEntity(
-                            title = resolvedTitle,
-                            type = current.type,
-                            amountMinor = amount,
-                            categoryId = current.categoryId,
-                            paymentMethod = current.paymentMethod,
-                            creditCardId = current.creditCardId,
-                            frequency = current.frequency,
-                            dayOfMonth = current.date.dayOfMonth,
-                            dayOfWeek = current.date.dayOfWeek.value,
-                            monthOfYear = current.date.monthValue,
-                            startDate = current.date.toEpochDay(),
-                            // Bu ayki kayit zaten elle eklendi; tekrar uretilmesin.
-                            lastGeneratedDate = current.date.toEpochDay(),
-                        )
-                    )
-                }
 
                 _state.value = _state.value.copy(saved = true, isSaving = false)
             } catch (error: Exception) {
@@ -238,12 +173,6 @@ class TransactionFormViewModel(
         }
         state.debtId?.let { id ->
             container.debtRepository.getDebt(id)?.let { return it.name }
-        }
-        state.receivableId?.let { id ->
-            container.receivableRepository.getById(id)?.let { return it.personName }
-        }
-        state.creditCardId?.let { id ->
-            container.creditCardRepository.getById(id)?.let { return it.name }
         }
         return state.type.label
     }

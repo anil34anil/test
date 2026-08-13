@@ -18,10 +18,7 @@ import java.time.LocalTime
 import java.util.concurrent.TimeUnit
 
 /**
- * Gunluk bakim isi:
- *  1. Vadesi gelen sabit gelir/giderleri gercek isleme cevirir.
- *  2. Yaklasan odemeleri bildirir.
- *  3. Butce siniri asilan kategorileri bildirir.
+ * Gunluk bakim isi: yaklasan borc odemelerini bildirir.
  *
  * Aginternet erisimi gerektirmez; tamamen yerel calisir.
  */
@@ -35,15 +32,11 @@ class ReminderWorker(
             ?: return ListenableWorker.Result.success()
 
         try {
-            // 1) Sabit gelir/giderleri isle
-            container.recurringGenerator.generateDue()
-
             val settings = container.settingsRepository.settings.first()
             if (!settings.notificationsEnabled) return ListenableWorker.Result.success()
 
             Notifications.ensureChannel(applicationContext)
 
-            // 2) Yaklasan odemeler
             val today = DateUtils.today()
             val horizon = today.plusDays(settings.reminderDaysBefore.toLong())
             val dashboard = container.analyticsRepository
@@ -62,19 +55,6 @@ class ReminderWorker(
                     "Yaklaşan ödemeler: ${Money.format(total, settings.currencySymbol)}",
                     lines,
                 )
-            }
-
-            // 3) Butce uyarilari
-            if (settings.budgetAlertsEnabled && dashboard.budgetWarnings.isNotEmpty()) {
-                val lines = dashboard.budgetWarnings.map { status ->
-                    val percent = (status.ratio * 100).toInt()
-                    if (status.isExceeded) {
-                        "${status.categoryName} bütçesi aşıldı (%$percent)"
-                    } else {
-                        "${status.categoryName} bütçenizin %$percent kadarını kullandınız"
-                    }
-                }
-                Notifications.showBudgetWarnings(applicationContext, "Bütçe uyarısı", lines)
             }
 
             return ListenableWorker.Result.success()

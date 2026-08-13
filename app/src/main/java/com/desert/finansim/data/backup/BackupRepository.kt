@@ -1,7 +1,6 @@
 package com.desert.finansim.data.backup
 
 import androidx.room.withTransaction
-import com.desert.finansim.data.local.BudgetEntity
 import com.desert.finansim.data.local.FinansimDatabase
 import com.desert.finansim.data.repository.SettingsRepository
 import com.desert.finansim.domain.model.ThemeMode
@@ -39,16 +38,11 @@ class BackupRepository(
                 openingBalanceMinor = settings.openingBalanceMinor,
                 notificationsEnabled = settings.notificationsEnabled,
                 reminderDaysBefore = settings.reminderDaysBefore,
-                budgetAlertsEnabled = settings.budgetAlertsEnabled,
             ),
             categories = db.categoryDao().observeAll().first(),
-            creditCards = db.creditCardDao().getAllOnce(),
             debts = db.debtDao().getAllOnce(),
             installments = db.installmentDao().getAllOnce(),
-            receivables = db.receivableDao().getAllOnce(),
             transactions = db.transactionDao().getAllOnce(),
-            budgets = db.budgetDao().getAllOnce(),
-            recurringRules = db.recurringRuleDao().getAllOnce(),
         )
         return json.encodeToString(BackupData.serializer(), data)
     }
@@ -92,7 +86,6 @@ class BackupRepository(
         settingsRepository.setOpeningBalance(settings.openingBalanceMinor)
         settingsRepository.setNotificationsEnabled(settings.notificationsEnabled)
         settingsRepository.setReminderDaysBefore(settings.reminderDaysBefore)
-        settingsRepository.setBudgetAlertsEnabled(settings.budgetAlertsEnabled)
         settingsRepository.setOnboardingCompleted(true)
     }
 
@@ -103,32 +96,20 @@ class BackupRepository(
      */
     private suspend fun restoreReplacing(data: BackupData): RestoreStats {
         db.transactionDao().deleteAll()
-        db.budgetDao().deleteAll()
-        db.recurringRuleDao().deleteAll()
         db.installmentDao().deleteAll()
         db.debtDao().deleteAll()
-        db.receivableDao().deleteAll()
-        db.creditCardDao().deleteAll()
         db.categoryDao().deleteAll()
 
         db.categoryDao().insertAll(data.categories)
-        db.creditCardDao().insertAll(data.creditCards)
         db.debtDao().insertAll(data.debts)
-        db.receivableDao().insertAll(data.receivables)
         db.installmentDao().insertAll(data.installments)
-        db.budgetDao().insertAll(data.budgets)
-        db.recurringRuleDao().insertAll(data.recurringRules)
         db.transactionDao().insertAll(data.transactions)
 
         return RestoreStats(
             categories = data.categories.size,
-            creditCards = data.creditCards.size,
             debts = data.debts.size,
             installments = data.installments.size,
-            receivables = data.receivables.size,
             transactions = data.transactions.size,
-            budgets = data.budgets.size,
-            recurringRules = data.recurringRules.size,
         )
     }
 
@@ -153,21 +134,9 @@ class BackupRepository(
             }
         }
 
-        val cardMap = mutableMapOf<Long, Long>()
-        data.creditCards.forEach { card ->
-            cardMap[card.id] = db.creditCardDao().insert(card.copy(id = 0))
-        }
-
         val debtMap = mutableMapOf<Long, Long>()
         data.debts.forEach { debt ->
-            debtMap[debt.id] = db.debtDao().insert(
-                debt.copy(id = 0, creditCardId = debt.creditCardId?.let { cardMap[it] })
-            )
-        }
-
-        val receivableMap = mutableMapOf<Long, Long>()
-        data.receivables.forEach { receivable ->
-            receivableMap[receivable.id] = db.receivableDao().insert(receivable.copy(id = 0))
+            debtMap[debt.id] = db.debtDao().insert(debt.copy(id = 0))
         }
 
         val installmentMap = mutableMapOf<Long, Long>()
@@ -177,39 +146,14 @@ class BackupRepository(
                 db.installmentDao().insert(installment.copy(id = 0, debtId = debtId))
         }
 
-        var budgets = 0
-        data.budgets.forEach { budget ->
-            val categoryId = categoryMap[budget.categoryId] ?: return@forEach
-            db.budgetDao().upsert(
-                BudgetEntity(id = 0, categoryId = categoryId, monthKey = budget.monthKey, amountMinor = budget.amountMinor)
-            )
-            budgets++
-        }
-
-        var rules = 0
-        data.recurringRules.forEach { rule ->
-            db.recurringRuleDao().insert(
-                rule.copy(
-                    id = 0,
-                    categoryId = rule.categoryId?.let { categoryMap[it] },
-                    creditCardId = rule.creditCardId?.let { cardMap[it] },
-                )
-            )
-            rules++
-        }
-
         var transactions = 0
         data.transactions.forEach { transaction ->
             db.transactionDao().insert(
                 transaction.copy(
                     id = 0,
                     categoryId = transaction.categoryId?.let { categoryMap[it] },
-                    creditCardId = transaction.creditCardId?.let { cardMap[it] },
                     debtId = transaction.debtId?.let { debtMap[it] },
                     installmentId = transaction.installmentId?.let { installmentMap[it] },
-                    receivableId = transaction.receivableId?.let { receivableMap[it] },
-                    // Tekrar kurali baglantisi merge sonrasi anlamini yitirir.
-                    recurringRuleId = null,
                 )
             )
             transactions++
@@ -217,13 +161,9 @@ class BackupRepository(
 
         return RestoreStats(
             categories = newCategories,
-            creditCards = cardMap.size,
             debts = debtMap.size,
             installments = installmentMap.size,
-            receivables = receivableMap.size,
             transactions = transactions,
-            budgets = budgets,
-            recurringRules = rules,
         )
     }
 }

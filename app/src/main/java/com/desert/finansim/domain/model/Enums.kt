@@ -3,33 +3,29 @@ package com.desert.finansim.domain.model
 /**
  * Gercek para hareketinin turu.
  *
- * Onemli muhasebe kurali: borc/alacak OLUSTURMAK bir para hareketi degildir ve
+ * Onemli muhasebe kurali: borc OLUSTURMAK bir para hareketi degildir ve
  * burada karsiligi yoktur. Sadece fiilen para giris/cikisi olan islemler
  * [TransactionEntity] olarak kaydedilir.
  *
- *  - [INCOME]                : nakit girisi (maas, prim...)
- *  - [EXPENSE]               : nakit cikisi (market, fatura...)
- *  - [DEBT_PAYMENT]          : borc/taksit/kredi karti odemesi -> nakit cikisi,
- *                              ama "gider" degildir; yukumlulugu azaltir.
- *  - [RECEIVABLE_COLLECTION] : alacak tahsilati -> nakit girisi,
- *                              ama "gelir" degildir; alacagi azaltir.
+ *  - [INCOME]       : nakit girisi (maas, prim...)
+ *  - [EXPENSE]       : nakit cikisi (market, fatura...)
+ *  - [DEBT_PAYMENT]  : borc/taksit odemesi -> nakit cikisi, ama "gider"
+ *                      degildir; yukumlulugu azaltir.
  */
 enum class TransactionType {
     INCOME,
     EXPENSE,
-    DEBT_PAYMENT,
-    RECEIVABLE_COLLECTION;
+    DEBT_PAYMENT;
 
     /** Kasaya para girisi mi? */
     val isCashIn: Boolean
-        get() = this == INCOME || this == RECEIVABLE_COLLECTION
+        get() = this == INCOME
 
     val label: String
         get() = when (this) {
             INCOME -> "Gelir"
             EXPENSE -> "Gider"
             DEBT_PAYMENT -> "Borç Ödemesi"
-            RECEIVABLE_COLLECTION -> "Tahsilat"
         }
 }
 
@@ -74,17 +70,6 @@ enum class InstallmentStatus {
             PENDING -> "Bekliyor"
             PAID -> "Ödendi"
             OVERDUE -> "Gecikti"
-        }
-}
-
-enum class RecurrenceFrequency {
-    WEEKLY, MONTHLY, YEARLY;
-
-    val label: String
-        get() = when (this) {
-            WEEKLY -> "Her hafta"
-            MONTHLY -> "Her ay"
-            YEARLY -> "Her yıl"
         }
 }
 

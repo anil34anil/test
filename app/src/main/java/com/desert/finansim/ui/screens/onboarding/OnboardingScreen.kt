@@ -1,6 +1,5 @@
 package com.desert.finansim.ui.screens.onboarding
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -83,26 +82,12 @@ fun OnboardingScreen() {
 
         Spacer(Modifier.height(16.dp))
 
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            AmountField(
-                value = state.openingBalanceText,
-                onValueChange = viewModel::setOpeningBalance,
-                currencySymbol = state.currencySymbol,
-                label = "Şu an elindeki para",
-            )
-            AmountField(
-                value = state.monthlyIncomeText,
-                onValueChange = viewModel::setMonthlyIncome,
-                currencySymbol = state.currencySymbol,
-                label = "Aylık geliriniz (maaş)",
-            )
-            AmountField(
-                value = state.fixedExpenseText,
-                onValueChange = viewModel::setFixedExpense,
-                currencySymbol = state.currencySymbol,
-                label = "Aylık sabit gideriniz (ör. kira)",
-            )
-        }
+        AmountField(
+            value = state.openingBalanceText,
+            onValueChange = viewModel::setOpeningBalance,
+            currencySymbol = state.currencySymbol,
+            label = "Şu an elindeki para",
+        )
 
         Spacer(Modifier.height(28.dp))
 

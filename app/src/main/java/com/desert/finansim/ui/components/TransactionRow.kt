@@ -38,7 +38,6 @@ fun TransactionRow(
         TransactionType.INCOME -> colors.income
         TransactionType.EXPENSE -> item.category?.let { Color(it.colorArgb) } ?: colors.expense
         TransactionType.DEBT_PAYMENT -> colors.debt
-        TransactionType.RECEIVABLE_COLLECTION -> colors.income
     }
 
     val amountColor = if (transaction.type.isCashIn) colors.income else colors.expense

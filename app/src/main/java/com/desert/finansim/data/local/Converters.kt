@@ -4,7 +4,6 @@ import androidx.room.TypeConverter
 import com.desert.finansim.domain.model.CategoryKind
 import com.desert.finansim.domain.model.DebtType
 import com.desert.finansim.domain.model.PaymentMethod
-import com.desert.finansim.domain.model.RecurrenceFrequency
 import com.desert.finansim.domain.model.TransactionType
 
 /**
@@ -41,11 +40,4 @@ class Converters {
     @TypeConverter
     fun toDebtType(value: String): DebtType =
         runCatching { DebtType.valueOf(value) }.getOrDefault(DebtType.OTHER)
-
-    @TypeConverter
-    fun fromRecurrenceFrequency(value: RecurrenceFrequency): String = value.name
-
-    @TypeConverter
-    fun toRecurrenceFrequency(value: String): RecurrenceFrequency =
-        runCatching { RecurrenceFrequency.valueOf(value) }.getOrDefault(RecurrenceFrequency.MONTHLY)
 }

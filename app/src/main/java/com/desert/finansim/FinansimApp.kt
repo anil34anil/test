@@ -36,8 +36,6 @@ class FinansimApp : Application() {
 
         appScope.launch {
             container.seedIfNeeded()
-            // Uygulama kapaliyken gecen aylarin sabit gelir/giderlerini yakala.
-            container.recurringGenerator.generateDue()
         }
 
         ReminderWorker.schedule(this)

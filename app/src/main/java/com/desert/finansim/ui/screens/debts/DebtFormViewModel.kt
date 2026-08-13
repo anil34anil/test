@@ -2,7 +2,6 @@ package com.desert.finansim.ui.screens.debts
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.desert.finansim.data.local.CreditCardEntity
 import com.desert.finansim.data.local.DebtEntity
 import com.desert.finansim.di.AppContainer
 import com.desert.finansim.domain.DateUtils
@@ -12,7 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -28,7 +27,6 @@ data class DebtFormState(
     val startDate: LocalDate = DateUtils.today(),
     val firstInstallmentDate: LocalDate = DateUtils.today().plusMonths(1),
     val dueDate: LocalDate = DateUtils.today().plusMonths(1),
-    val creditCardId: Long? = null,
     val note: String = "",
     val isEditing: Boolean = false,
     val hasExistingInstallments: Boolean = false,
@@ -49,7 +47,6 @@ data class DebtFormState(
 }
 
 data class DebtFormOptions(
-    val cards: List<CreditCardEntity> = emptyList(),
     val currencySymbol: String = Money.DEFAULT_SYMBOL,
 )
 
@@ -61,10 +58,8 @@ class DebtFormViewModel(
     private val _state = MutableStateFlow(DebtFormState())
     val state: StateFlow<DebtFormState> = _state.asStateFlow()
 
-    val options: StateFlow<DebtFormOptions> = combine(
-        container.creditCardRepository.activeCards,
-        container.settingsRepository.currencySymbol,
-    ) { cards, currency -> DebtFormOptions(cards, currency) }
+    val options: StateFlow<DebtFormOptions> = container.settingsRepository.currencySymbol
+        .map { currency -> DebtFormOptions(currency) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DebtFormOptions())
 
     init {
@@ -79,7 +74,7 @@ class DebtFormViewModel(
                 name = debt.name,
                 counterparty = debt.counterparty,
                 type = debt.type,
-                totalText = Money.format(debt.totalAmountMinor, withSymbol = false),
+                totalText = Money.formatRaw(debt.totalAmountMinor),
                 interestText = debt.interestRate?.toString()?.replace('.', ',') ?: "",
                 hasInstallments = installments.isNotEmpty(),
                 installmentCountText = (debt.installmentCount ?: installments.size).toString(),
@@ -89,7 +84,6 @@ class DebtFormViewModel(
                     ?: DateUtils.fromEpochDay(debt.startDate).plusMonths(1),
                 dueDate = debt.dueDate?.let { DateUtils.fromEpochDay(it) }
                     ?: DateUtils.fromEpochDay(debt.startDate).plusMonths(1),
-                creditCardId = debt.creditCardId,
                 note = debt.note,
                 isEditing = true,
                 hasExistingInstallments = installments.isNotEmpty(),
@@ -108,7 +102,6 @@ class DebtFormViewModel(
         _state.value = _state.value.copy(firstInstallmentDate = value)
     }
     fun setDueDate(value: LocalDate) { _state.value = _state.value.copy(dueDate = value) }
-    fun setCreditCard(id: Long?) { _state.value = _state.value.copy(creditCardId = id) }
 
     fun setHasInstallments(enabled: Boolean) {
         _state.value = _state.value.copy(hasInstallments = enabled, installmentError = null)
@@ -177,7 +170,6 @@ class DebtFormViewModel(
                                 } else {
                                     current.dueDate.toEpochDay()
                                 },
-                                creditCardId = current.creditCardId,
                                 note = current.note.trim(),
                             )
                         )
@@ -192,7 +184,6 @@ class DebtFormViewModel(
                             interestRate = interest,
                             startDate = current.startDate.toEpochDay(),
                             dueDate = if (current.hasInstallments) null else current.dueDate.toEpochDay(),
-                            creditCardId = current.creditCardId,
                             note = current.note.trim(),
                         ),
                         installmentCount = count,

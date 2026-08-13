@@ -14,7 +14,6 @@ import com.desert.finansim.domain.Money
 import com.desert.finansim.domain.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
@@ -27,19 +26,9 @@ data class AppSettings(
     val onboardingCompleted: Boolean = false,
     val notificationsEnabled: Boolean = false,
     val reminderDaysBefore: Int = 2,
-    val budgetAlertsEnabled: Boolean = true,
-    val hasPin: Boolean = false,
-    val biometricEnabled: Boolean = false,
-) {
-    val lockEnabled: Boolean get() = hasPin
-}
+)
 
-/**
- * Uygulama ayarlari DataStore'da tutulur.
- *
- * PIN asla duz metin saklanmaz: rastgele salt + PBKDF2 ozeti saklanir
- * (bkz. [PinHasher]).
- */
+/** Uygulama ayarlari DataStore'da tutulur. */
 class SettingsRepository(private val context: Context) {
 
     private object Keys {
@@ -49,10 +38,6 @@ class SettingsRepository(private val context: Context) {
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_completed")
         val NOTIFICATIONS = booleanPreferencesKey("notifications_enabled")
         val REMINDER_DAYS = intPreferencesKey("reminder_days_before")
-        val BUDGET_ALERTS = booleanPreferencesKey("budget_alerts_enabled")
-        val PIN_HASH = stringPreferencesKey("pin_hash")
-        val PIN_SALT = stringPreferencesKey("pin_salt")
-        val BIOMETRIC = booleanPreferencesKey("biometric_enabled")
     }
 
     private val preferences: Flow<Preferences> = context.settingsDataStore.data
@@ -71,9 +56,6 @@ class SettingsRepository(private val context: Context) {
             onboardingCompleted = prefs[Keys.ONBOARDING_DONE] ?: false,
             notificationsEnabled = prefs[Keys.NOTIFICATIONS] ?: false,
             reminderDaysBefore = prefs[Keys.REMINDER_DAYS] ?: 2,
-            budgetAlertsEnabled = prefs[Keys.BUDGET_ALERTS] ?: true,
-            hasPin = !prefs[Keys.PIN_HASH].isNullOrEmpty(),
-            biometricEnabled = prefs[Keys.BIOMETRIC] ?: false,
         )
     }
 
@@ -105,39 +87,5 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setReminderDaysBefore(days: Int) {
         context.settingsDataStore.edit { it[Keys.REMINDER_DAYS] = days.coerceIn(0, 14) }
-    }
-
-    suspend fun setBudgetAlertsEnabled(enabled: Boolean) {
-        context.settingsDataStore.edit { it[Keys.BUDGET_ALERTS] = enabled }
-    }
-
-    suspend fun setBiometricEnabled(enabled: Boolean) {
-        context.settingsDataStore.edit { it[Keys.BIOMETRIC] = enabled }
-    }
-
-    /** PIN'i ozetleyip saklar. Duz metin hicbir zaman diske yazilmaz. */
-    suspend fun setPin(pin: String) {
-        val salt = PinHasher.newSalt()
-        val hash = PinHasher.hash(pin, salt)
-        context.settingsDataStore.edit {
-            it[Keys.PIN_SALT] = salt
-            it[Keys.PIN_HASH] = hash
-        }
-    }
-
-    suspend fun clearPin() {
-        context.settingsDataStore.edit {
-            it.remove(Keys.PIN_HASH)
-            it.remove(Keys.PIN_SALT)
-            it[Keys.BIOMETRIC] = false
-        }
-    }
-
-    /** Girilen PIN dogru mu? Kayitli PIN yoksa true doner (kilit kapali). */
-    suspend fun verifyPin(pin: String): Boolean {
-        val snapshot = preferences.first()
-        val hash = snapshot[Keys.PIN_HASH] ?: return true
-        val salt = snapshot[Keys.PIN_SALT] ?: return true
-        return PinHasher.verify(pin, salt, hash)
     }
 }

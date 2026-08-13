@@ -1,30 +1,21 @@
 package com.desert.finansim
 
 import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.desert.finansim.data.repository.AppSettings
 import com.desert.finansim.ui.LocalAppContainer
 import com.desert.finansim.ui.navigation.FinansimNavHost
-import com.desert.finansim.ui.screens.lock.LockScreen
 import com.desert.finansim.ui.screens.onboarding.OnboardingScreen
 import com.desert.finansim.ui.theme.FinansimTheme
 
-/**
- * Tek Activity mimarisi.
- *
- * [FragmentActivity] secildi cunku androidx.biometric BiometricPrompt
- * fragment tabanli calisir ve bunu gerektirir.
- */
-class MainActivity : FragmentActivity() {
+/** Tek Activity mimarisi. */
+class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -38,7 +29,7 @@ class MainActivity : FragmentActivity() {
 
             FinansimTheme(themeMode = settings.themeMode) {
                 CompositionLocalProvider(LocalAppContainer provides container) {
-                    AppRoot(settings = settings, activity = this@MainActivity)
+                    AppRoot(settings = settings)
                 }
             }
         }
@@ -46,22 +37,10 @@ class MainActivity : FragmentActivity() {
 }
 
 @Composable
-private fun AppRoot(settings: AppSettings, activity: FragmentActivity) {
-    // Uygulama acildiginda kilitli baslar; oturum boyunca acik kalir.
-    var unlocked by rememberSaveable { mutableStateOf(false) }
-    val needsUnlock = settings.lockEnabled && !unlocked
-
-    when {
-        !settings.onboardingCompleted -> OnboardingScreen()
-
-        needsUnlock -> {
-            LockScreen(
-                biometricEnabled = settings.biometricEnabled,
-                activity = activity,
-                onUnlocked = { unlocked = true },
-            )
-        }
-
-        else -> FinansimNavHost()
+private fun AppRoot(settings: AppSettings) {
+    if (!settings.onboardingCompleted) {
+        OnboardingScreen()
+    } else {
+        FinansimNavHost()
     }
 }

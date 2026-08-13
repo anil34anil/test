@@ -1,20 +1,15 @@
 package com.desert.finansim.data.repository
 
 import androidx.room.withTransaction
-import com.desert.finansim.data.local.BudgetEntity
 import com.desert.finansim.data.local.CategoryEntity
-import com.desert.finansim.data.local.CreditCardEntity
 import com.desert.finansim.data.local.DebtEntity
 import com.desert.finansim.data.local.FinansimDatabase
 import com.desert.finansim.data.local.InstallmentEntity
-import com.desert.finansim.data.local.ReceivableEntity
-import com.desert.finansim.data.local.RecurringRuleEntity
 import com.desert.finansim.data.local.TransactionEntity
 import com.desert.finansim.domain.DateUtils
 import com.desert.finansim.domain.Money
 import com.desert.finansim.domain.model.CategoryKind
 import com.desert.finansim.domain.model.DebtSummary
-import com.desert.finansim.domain.model.ReceivableSummary
 import com.desert.finansim.domain.model.TransactionType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -59,8 +54,6 @@ class TransactionRepository(private val db: FinansimDatabase) {
         val ym = DateUtils.yearMonthOf(monthKey)
         return dao.observeBetween(DateUtils.firstDayEpoch(ym), DateUtils.lastDayEpoch(ym))
     }
-
-    fun forCard(cardId: Long): Flow<List<TransactionEntity>> = dao.observeForCard(cardId)
 
     suspend fun getById(id: Long): TransactionEntity? = dao.getById(id)
 
@@ -123,7 +116,7 @@ class DebtRepository(private val db: FinansimDatabase) {
      * eklenir, boylece taksitlerin toplami her zaman toplam borca esittir.
      *
      * ONEMLI: Borc olusturmak bir para hareketi DEGILDIR; burada hicbir
-     * [TransactionEntity] uretilmez (sartname 28).
+     * [TransactionEntity] uretilmez.
      */
     suspend fun createDebt(
         debt: DebtEntity,
@@ -200,7 +193,6 @@ class DebtRepository(private val db: FinansimDatabase) {
                 title = "${debt.name} • ${installment.number}/${installment.totalCount}",
                 debtId = debt.id,
                 installmentId = installment.id,
-                creditCardId = debt.creditCardId,
                 createdAt = System.currentTimeMillis(),
             )
         )
@@ -239,7 +231,6 @@ class DebtRepository(private val db: FinansimDatabase) {
                 title = debt.name,
                 note = note,
                 debtId = debtId,
-                creditCardId = debt.creditCardId,
                 createdAt = System.currentTimeMillis(),
             )
         )
@@ -248,171 +239,4 @@ class DebtRepository(private val db: FinansimDatabase) {
             debtDao.setClosed(debtId, true)
         }
     }
-}
-
-class ReceivableRepository(private val db: FinansimDatabase) {
-
-    private val receivableDao = db.receivableDao()
-    private val transactionDao = db.transactionDao()
-
-    val summaries: Flow<List<ReceivableSummary>> = combine(
-        receivableDao.observeAll(),
-        transactionDao.observeTotalsByReceivable(TransactionType.RECEIVABLE_COLLECTION),
-    ) { receivables, totals ->
-        val collectedById = totals.associate { it.id to it.total }
-        receivables.map {
-            ReceivableSummary(receivable = it, collectedMinor = collectedById[it.id] ?: 0L)
-        }
-    }
-
-    fun observe(id: Long): Flow<ReceivableEntity?> = receivableDao.observeById(id)
-
-    fun collectionsFor(id: Long): Flow<List<TransactionEntity>> =
-        transactionDao.observeForReceivable(id)
-
-    suspend fun getById(id: Long): ReceivableEntity? = receivableDao.getById(id)
-
-    /** Alacak olusturmak gelir DEGILDIR; islem uretilmez (sartname 28). */
-    suspend fun create(receivable: ReceivableEntity): Long = receivableDao.insert(receivable)
-
-    suspend fun update(receivable: ReceivableEntity) = receivableDao.update(receivable)
-
-    suspend fun delete(receivable: ReceivableEntity) = receivableDao.delete(receivable)
-
-    /** Tahsilat: gercek para girisi olusturur, alacagi azaltir. */
-    suspend fun addCollection(
-        receivableId: Long,
-        amountMinor: Long,
-        date: LocalDate,
-        note: String = "",
-    ) = db.withTransaction {
-        require(amountMinor > 0) { "Tahsilat tutarı sıfırdan büyük olmalı" }
-        val receivable = receivableDao.getById(receivableId) ?: return@withTransaction
-        transactionDao.insert(
-            TransactionEntity(
-                type = TransactionType.RECEIVABLE_COLLECTION,
-                amountMinor = amountMinor,
-                date = date.toEpochDay(),
-                title = receivable.personName,
-                note = note,
-                receivableId = receivableId,
-                createdAt = System.currentTimeMillis(),
-            )
-        )
-        val collected = transactionDao.totalForReceivable(
-            receivableId, TransactionType.RECEIVABLE_COLLECTION
-        )
-        if (collected >= receivable.totalAmountMinor) {
-            receivableDao.setClosed(receivableId, true)
-        }
-    }
-}
-
-class CreditCardRepository(private val db: FinansimDatabase) {
-
-    private val cardDao = db.creditCardDao()
-    private val transactionDao = db.transactionDao()
-
-    val activeCards: Flow<List<CreditCardEntity>> = cardDao.observeActive()
-    val allCards: Flow<List<CreditCardEntity>> = cardDao.observeAll()
-
-    /** Kart basina harcama ve odeme toplamlari. */
-    val cardTotals: Flow<Pair<Map<Long, Long>, Map<Long, Long>>> = combine(
-        transactionDao.observeTotalsByCard(TransactionType.EXPENSE),
-        transactionDao.observeTotalsByCard(TransactionType.DEBT_PAYMENT),
-    ) { spent, paid ->
-        spent.associate { it.id to it.total } to paid.associate { it.id to it.total }
-    }
-
-    fun observe(id: Long): Flow<CreditCardEntity?> = cardDao.observeById(id)
-
-    fun transactionsFor(id: Long): Flow<List<TransactionEntity>> = transactionDao.observeForCard(id)
-
-    suspend fun getById(id: Long): CreditCardEntity? = cardDao.getById(id)
-
-    suspend fun save(card: CreditCardEntity): Long =
-        if (card.id == 0L) cardDao.insert(card) else { cardDao.update(card); card.id }
-
-    suspend fun delete(card: CreditCardEntity) = cardDao.delete(card)
-
-    /** Kart ekstre odemesi: nakit cikisi + kullanilan limitin azalmasi. */
-    suspend fun addCardPayment(
-        cardId: Long,
-        amountMinor: Long,
-        date: LocalDate,
-        note: String = "",
-    ) {
-        require(amountMinor > 0) { "Ödeme tutarı sıfırdan büyük olmalı" }
-        val card = cardDao.getById(cardId) ?: return
-        transactionDao.insert(
-            TransactionEntity(
-                type = TransactionType.DEBT_PAYMENT,
-                amountMinor = amountMinor,
-                date = date.toEpochDay(),
-                title = "${card.name} ekstre ödemesi",
-                note = note,
-                creditCardId = cardId,
-                createdAt = System.currentTimeMillis(),
-            )
-        )
-    }
-}
-
-class BudgetRepository(private val db: FinansimDatabase) {
-
-    private val dao = db.budgetDao()
-
-    fun forMonth(monthKey: Int): Flow<List<BudgetEntity>> = dao.observeForMonth(monthKey)
-
-    suspend fun setBudget(categoryId: Long, monthKey: Int, amountMinor: Long) {
-        if (amountMinor <= 0L) {
-            dao.deleteFor(categoryId, monthKey)
-            return
-        }
-        val existing = dao.getFor(categoryId, monthKey)
-        dao.upsert(
-            BudgetEntity(
-                id = existing?.id ?: 0L,
-                categoryId = categoryId,
-                monthKey = monthKey,
-                amountMinor = amountMinor,
-            )
-        )
-    }
-
-    suspend fun remove(categoryId: Long, monthKey: Int) = dao.deleteFor(categoryId, monthKey)
-
-    /** Onceki ayin butcelerini secilen aya kopyalar. */
-    suspend fun copyFromPreviousMonth(targetMonthKey: Int) {
-        val previous = DateUtils.monthKey(DateUtils.yearMonthOf(targetMonthKey).minusMonths(1))
-        val source = dao.getAllOnce().filter { it.monthKey == previous }
-        source.forEach { budget ->
-            val existing = dao.getFor(budget.categoryId, targetMonthKey)
-            if (existing == null) {
-                dao.upsert(
-                    BudgetEntity(
-                        categoryId = budget.categoryId,
-                        monthKey = targetMonthKey,
-                        amountMinor = budget.amountMinor,
-                    )
-                )
-            }
-        }
-    }
-}
-
-class RecurringRepository(private val db: FinansimDatabase) {
-
-    private val dao = db.recurringRuleDao()
-
-    val allRules: Flow<List<RecurringRuleEntity>> = dao.observeAll()
-
-    suspend fun getById(id: Long): RecurringRuleEntity? = dao.getById(id)
-
-    suspend fun save(rule: RecurringRuleEntity): Long =
-        if (rule.id == 0L) dao.insert(rule) else { dao.update(rule); rule.id }
-
-    suspend fun setActive(id: Long, active: Boolean) = dao.setActive(id, active)
-
-    suspend fun delete(rule: RecurringRuleEntity) = dao.delete(rule)
 }

@@ -127,17 +127,6 @@ fun DebtFormScreen(
                 label = "Başlangıç tarihi",
             )
 
-            if (options.cards.isNotEmpty() && state.type == DebtType.CREDIT_CARD) {
-                DropdownField(
-                    label = "Bağlı kart (isteğe bağlı)",
-                    options = options.cards,
-                    selected = options.cards.firstOrNull { it.id == state.creditCardId },
-                    optionLabel = { it.name },
-                    onSelect = { viewModel.setCreditCard(it.id) },
-                    placeholder = "Kart seçin",
-                )
-            }
-
             // --- Taksit plani ---------------------------------------------
             Row(
                 modifier = Modifier.fillMaxWidth(),

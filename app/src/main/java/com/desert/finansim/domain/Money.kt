@@ -144,6 +144,64 @@ object Money {
         }
     }
 
+    /**
+     * Duzenlenebilir tutar alaninin "ham" (gruplama noktasi ICERMEYEN) metni.
+     * Mevcut bir kaydi duzenlerken alanin baslangic degerini doldurmak icin
+     * kullanilir; boylece alanin gercek metni her zaman [sanitizeAmountInput]
+     * ile ayni bicimde kalir (nokta asla iceremez).
+     *
+     *   40000000L -> "400000"     40050L -> "400,50"
+     */
+    fun formatRaw(minor: Long): String {
+        val negative = minor < 0
+        val abs = if (minor == Long.MIN_VALUE) Long.MAX_VALUE else kotlin.math.abs(minor)
+        val whole = abs / SCALE
+        val cents = (abs % SCALE).toInt()
+
+        val sb = StringBuilder()
+        if (negative) sb.append('-')
+        sb.append(whole)
+        if (cents != 0) {
+            sb.append(DECIMAL_SEPARATOR)
+            sb.append(cents.toString().padStart(2, '0'))
+        }
+        return sb.toString()
+    }
+
+    /**
+     * Tutar alaninin DUZENLENEBILIR metnini temizler: sadece rakam ve en fazla
+     * bir ondalik ayraci birakir, BASKA HICBIR KARAKTER EKLEMEZ (nokta gibi
+     * gruplama karakterleri dahil). Klavyenin (IME) gordugu asil metin boylece
+     * her zaman kullanicinin yazdigi karakterlerin bir alt kumesi olur; ekrandaki
+     * gruplama (bin ayraci) sadece [AmountVisualTransformation] ile GORSEL olarak
+     * eklenir, duzenlenebilir metne asla yazilmaz.
+     *
+     * Bu ayrim onemli: eski tasarimda her tus vurusunda bicimlendirilmis metin
+     * dogrudan TextField'e geri yaziliyordu, bu da bazi Android klavyelerinde
+     * (composing-region tutan IME'lerde) senkron yeniden yazmanin klavyenin kendi
+     * arabellegiyle cakismasina ve yanlis/eksik karakter eklenmesine yol aciyordu.
+     */
+    fun sanitizeAmountInput(raw: String): String {
+        val wholeBuilder = StringBuilder()
+        val decimalBuilder = StringBuilder()
+        var decimalSeen = false
+        for (ch in raw) {
+            when {
+                ch.isDigit() -> {
+                    if (decimalSeen) {
+                        if (decimalBuilder.length < 2) decimalBuilder.append(ch)
+                    } else {
+                        if (wholeBuilder.length < 15) wholeBuilder.append(ch)
+                    }
+                }
+                (ch == ',' || ch == '.') && !decimalSeen && wholeBuilder.isNotEmpty() -> {
+                    decimalSeen = true
+                }
+            }
+        }
+        return if (decimalSeen) "$wholeBuilder$DECIMAL_SEPARATOR$decimalBuilder" else wholeBuilder.toString()
+    }
+
     /** Yuzde hesabi; taksit/butce oranlarinda kullanilir. Payda 0 ise 0 doner. */
     fun percent(part: Long, total: Long): Float {
         if (total <= 0L) return 0f
