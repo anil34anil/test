@@ -547,6 +547,9 @@
         </label>
       </form>
 
+      <span class="section-label">Bu ayki taksitler</span>
+      <div id="inst-due-list"></div>
+
       <span class="section-label">Sabit gelirler</span>
       <div id="fixed-list"></div>
 
@@ -968,6 +971,20 @@
   });
 
   // ---------- Ana Sayfa ----------
+  function renderMonthlyInstallmentDues() {
+    var wrap = document.getElementById('inst-due-list');
+    var html = '';
+    state.installments.filter(isActive).forEach(function (plan) {
+      html += '<div class="fixed-row">' +
+        '<span class="row-badge">Taksit</span>' +
+        '<span class="row-note">' + escapeHtml(plan.name) + ' (' + (plan.paidCount + 1) + '/' + plan.months + ')</span>' +
+        '<span class="row-amount negative">-' + formatTRY(monthlyAmount(plan)) + '</span>' +
+        '</div>';
+    });
+    if (!html) html = '<p class="empty-note">Bu ay aktif taksit yok.</p>';
+    wrap.innerHTML = html;
+  }
+
   function renderHome() {
     var monthKey = monthKeyOf(new Date());
     var monthEntries = entriesForMonth(monthKey);
@@ -987,6 +1004,7 @@
     document.getElementById('home-sub').textContent =
       formatTRY(incomeTotal) + ' gelir − ' + formatTRY(expenseTotal) + ' gider − ' + formatTRY(instDue) + ' taksit';
 
+    renderMonthlyInstallmentDues();
     renderFixedIncomes();
     renderEntryListInto(document.getElementById('entry-list'), entriesForDate(dateStrOf(new Date())));
   }
