@@ -1,0 +1,137 @@
+name: APK Derle
+
+# Telefondan kullanim icin: derlemeyi GitHub sunucularinda yapar ve
+# sonucta kurulabilir bir APK'yi Releases sayfasina yukler.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/finansim-android-app-mdcwoi
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@v4
+
+      - name: JDK 17 kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Android SDK bilesenlerini kur
+        run: |
+          set -e
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      # Imzalama anahtari repoda TUTULMAZ. Ilk calismada uretilir ve
+      # actions cache'inde saklanir; sonraki derlemeler ayni anahtari
+      # kullanir, boylece uygulama guncelleme olarak kurulabilir.
+      - name: Imzalama anahtarini onbellekten al
+        id: keystore-cache
+        uses: actions/cache@v4
+        with:
+          path: keystore
+          key: finansim-signing-key-v1
+
+      - name: Imzalama anahtarini uret (yalnizca ilk calismada)
+        if: steps.keystore-cache.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          mkdir -p keystore
+          keytool -genkeypair -v \
+            -keystore keystore/finansim-release.jks \
+            -storepass finansim -keypass finansim \
+            -alias finansim \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Finansim, OU=Personal, O=Finansim, L=Istanbul, C=TR"
+
+      - name: keystore.properties olustur
+        run: |
+          cat > keystore.properties <<EOF
+          storeFile=keystore/finansim-release.jks
+          storePassword=finansim
+          keyAlias=finansim
+          keyPassword=finansim
+          EOF
+
+      - name: gradlew calistirilabilir yap
+        run: chmod +x ./gradlew
+
+      # Test hatasi APK uretimini engellemesin, ama sonuc gizlenmesin:
+      # is akisi sonunda ayrica basarisiz olarak isaretlenir (asagida).
+      - name: Birim testleri calistir
+        id: tests
+        continue-on-error: true
+        run: ./gradlew test --no-daemon --stacktrace
+
+      - name: Test raporunu yukle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-raporu
+          path: app/build/reports/tests/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Release APK uret
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: APK'yi yeniden adlandir
+        id: apk
+        run: |
+          set -e
+          APK=$(find app/build/outputs/apk/release -name "*.apk" | head -n1)
+          echo "Bulunan APK: $APK"
+          cp "$APK" finansim.apk
+          echo "size=$(du -h finansim.apk | cut -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: APK'yi is ciktisi olarak yukle
+        uses: actions/upload-artifact@v4
+        with:
+          name: finansim-apk
+          path: finansim.apk
+          retention-days: 30
+
+      # Telefondan tek dokunusla indirilebilmesi icin Releases'e koyar.
+      - name: Release olarak yayinla
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG="apk-latest"
+          NOTES="Ay Sonu — otomatik derlenmiş kurulabilir APK
+
+          Derleme: ${{ github.run_number }}
+          Commit: ${{ github.sha }}
+          Birim testler: ${{ steps.tests.outcome }}
+
+          Kurulum: aşağıdaki finansim.apk dosyasına dokun, indir ve aç.
+          Android 'bilinmeyen kaynak' izni isterse tarayıcına bu izni ver."
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" finansim.apk --clobber
+            gh release edit "$TAG" --notes "$NOTES"
+          else
+            gh release create "$TAG" finansim.apk \
+              --title "Ay Sonu APK" \
+              --notes "$NOTES"
+          fi
+          echo "Indirme linki: https://github.com/${{ github.repository }}/releases/download/$TAG/finansim.apk"
+
+      # APK yayinlandiktan SONRA calisir: testler kirmiziysa is akisi da
+      # kirmizi gorunsun, "yesil" sanip gecilmesin.
+      - name: Test sonucunu dogrula
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "::error::Birim testler basarisiz. APK yine de uretildi, ama test raporunu inceleyin."
+          exit 1
