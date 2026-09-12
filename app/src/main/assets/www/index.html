@@ -161,7 +161,7 @@
     width: 100%;
   }
 
-  #entry-note, #inst-name, .edit-note { font-family: var(--font-body); }
+  .entry-note-input, #inst-name, .edit-note { font-family: var(--font-body); }
 
   input:focus-visible, button:focus-visible, summary:focus-visible {
     outline: 2px solid var(--accent);
@@ -248,6 +248,16 @@
     white-space: nowrap;
   }
 
+  .recurring-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+  .recurring-row[hidden] { display: none; }
+  .recurring-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); flex: 0 0 auto; }
+
   .entry-list { list-style: none; margin: 0; padding: 0; flex: 0 0 auto; }
 
   .entry-row {
@@ -312,6 +322,16 @@
   .positive { color: var(--positive); }
   .negative { color: var(--negative); }
 
+  .fixed-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 2px;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.86rem;
+  }
+  .fixed-row .row-note { color: var(--ink); }
+
   .inst-card {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -370,22 +390,97 @@
 
   .inst-form-title { font-size: 0.8rem; color: var(--ink-soft); margin: 2px 0 0; }
 
-  .hist-note { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.5; flex: 0 0 auto; }
-
-  .hist-card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 13px;
+  /* --- calendar --- */
+  .cal-header {
     display: flex;
-    flex-direction: column;
-    gap: 5px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     flex: 0 0 auto;
   }
 
-  .hist-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 0.92rem; font-weight: 600; }
-  .hist-net { font-family: var(--font-mono); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
-  .hist-sub { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 0.76rem; color: var(--ink-soft); }
+  .cal-nav-btn {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    width: 36px;
+    height: 36px;
+    font-size: 1.05rem;
+    color: var(--ink);
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+  .cal-nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+  .cal-month-group { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+  .cal-month-label { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; }
+  .cal-today-btn {
+    background: none; border: none; color: var(--accent-ink); font-size: 0.72rem;
+    font-weight: 600; cursor: pointer; padding: 0;
+  }
+
+  .cal-dow {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    flex: 0 0 auto;
+    font-size: 0.66rem;
+    color: var(--ink-soft);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .cal-grid-wrap { flex: 0 0 auto; touch-action: pan-y; }
+
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+  }
+
+  .cal-cell {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: var(--surface);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    font: inherit;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.8rem;
+    color: var(--ink);
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .cal-cell.empty { background: transparent; border: none; cursor: default; }
+  .cal-cell.today { border-color: var(--accent); }
+  .cal-cell.selected { background: var(--accent); color: var(--surface); }
+
+  .cal-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ink-soft); }
+  .cal-dot.positive { background: var(--positive); }
+  .cal-dot.negative { background: var(--negative); }
+  .cal-cell.selected .cal-dot { background: var(--surface); }
+
+  .cal-day-detail {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .cal-day-label {
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    flex: 0 0 auto;
+  }
 
   .tab-bar {
     display: flex;
@@ -441,13 +536,21 @@
           <button type="button" class="chip active" data-type="income">Gelir</button>
           <button type="button" class="chip" data-type="expense">Gider</button>
         </div>
-        <input type="text" id="entry-note" placeholder="Ne için? (opsiyonel)" />
+        <input type="text" class="entry-note-input" placeholder="Ne için? (opsiyonel)" />
         <div class="amount-row">
-          <input type="number" inputmode="decimal" id="entry-amount" placeholder="Tutar" required />
+          <input type="number" inputmode="decimal" class="entry-amount-input" placeholder="Tutar" required />
           <button type="submit">Ekle</button>
         </div>
+        <label class="recurring-row">
+          <input type="checkbox" class="recurring-checkbox" />
+          Her ay bu günde tekrarla (sabit gelir)
+        </label>
       </form>
 
+      <span class="section-label">Sabit gelirler</span>
+      <div id="fixed-list"></div>
+
+      <span class="section-label">Bugün</span>
       <ul class="entry-list" id="entry-list"></ul>
     </div>
 
@@ -466,15 +569,51 @@
       </form>
     </div>
 
-    <div class="tab-content" id="tab-history" hidden>
-      <p class="hist-note" id="hist-note"></p>
-      <div id="hist-list"></div>
+    <div class="tab-content" id="tab-calendar" hidden>
+      <div class="cal-header">
+        <button type="button" class="cal-nav-btn" id="cal-prev" aria-label="Önceki ay">‹</button>
+        <div class="cal-month-group">
+          <span class="cal-month-label" id="cal-month-label"></span>
+          <button type="button" class="cal-today-btn" id="cal-today-btn">Bugün</button>
+        </div>
+        <button type="button" class="cal-nav-btn" id="cal-next" aria-label="Sonraki ay">›</button>
+      </div>
+
+      <div class="cal-dow">
+        <span>Pzt</span><span>Sal</span><span>Çar</span><span>Per</span><span>Cum</span><span>Cmt</span><span>Paz</span>
+      </div>
+
+      <div class="cal-grid-wrap" id="cal-grid-wrap">
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+
+      <div class="cal-day-detail">
+        <span class="cal-day-label" id="cal-day-label"></span>
+
+        <form class="add-form" id="cal-add-form">
+          <div class="type-toggle" role="group" aria-label="Tür seç">
+            <button type="button" class="chip active" data-type="income">Gelir</button>
+            <button type="button" class="chip" data-type="expense">Gider</button>
+          </div>
+          <input type="text" class="entry-note-input" placeholder="Ne için? (opsiyonel)" />
+          <div class="amount-row">
+            <input type="number" inputmode="decimal" class="entry-amount-input" placeholder="Tutar" required />
+            <button type="submit">Ekle</button>
+          </div>
+          <label class="recurring-row">
+            <input type="checkbox" class="recurring-checkbox" />
+            Her ay bu günde tekrarla (sabit gelir)
+          </label>
+        </form>
+
+        <ul class="entry-list" id="cal-day-list"></ul>
+      </div>
     </div>
 
     <nav class="tab-bar">
       <button class="tab-btn active" data-tab="home">🏠 Ana Sayfa</button>
       <button class="tab-btn" data-tab="installments">📅 Taksitler</button>
-      <button class="tab-btn" data-tab="history">📖 Geçmiş</button>
+      <button class="tab-btn" data-tab="calendar">🗓️ Takvim</button>
     </nav>
   </div>
 
@@ -497,6 +636,10 @@
     return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
   }
 
+  function dateStrOf(date) {
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  }
+
   function monthLabelOf(monthKey) {
     var parts = monthKey.split('-');
     var d = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
@@ -512,29 +655,72 @@
     return y + '-' + String(m).padStart(2, '0');
   }
 
+  function prevMonthKey(monthKey) {
+    var parts = monthKey.split('-');
+    var y = Number(parts[0]), m = Number(parts[1]);
+    m--;
+    if (m < 1) { m = 12; y--; }
+    return y + '-' + String(m).padStart(2, '0');
+  }
+
+  function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+
+  function firstWeekdayMonToSun(y, m) { return (new Date(y, m - 1, 1).getDay() + 6) % 7; }
+
   // ---------- persisted state ----------
-  var STORAGE_KEY = 'aySonuData_v1';
+  var STORAGE_KEY = 'aySonuData_v2';
 
   function defaultState() {
     return {
-      version: 1,
-      currentMonthKey: monthKeyOf(new Date()),
+      version: 2,
       entries: [],
       nextEntryId: 1,
+      recurringIncomes: [],
+      nextRecurringId: 1,
       installments: [],
       nextInstId: 1,
-      history: [],
+      lastCheckedMonthKey: monthKeyOf(new Date()),
       lastReminderMonth: null
     };
+  }
+
+  // Bir önceki (aylık) modelden geçiş: taksitler aynen, tek-seferlik hareketler
+  // o ayın 1'ine tarihlenerek bir kereliğine taşınır.
+  function migrateFromV1() {
+    try {
+      var raw = localStorage.getItem('aySonuData_v1');
+      if (!raw) return null;
+      var v1 = JSON.parse(raw);
+      if (!v1 || typeof v1 !== 'object') return null;
+
+      var v2 = defaultState();
+      if (Array.isArray(v1.installments)) {
+        v2.installments = v1.installments;
+        v2.nextInstId = v1.nextInstId || (v1.installments.length + 1);
+      }
+      if (Array.isArray(v1.entries) && v1.currentMonthKey) {
+        var fallbackDate = v1.currentMonthKey + '-01';
+        v2.entries = v1.entries.map(function (e) {
+          return { id: e.id, date: fallbackDate, type: e.type, note: e.note, amount: e.amount };
+        });
+        v2.nextEntryId = v1.nextEntryId || (v1.entries.length + 1);
+      }
+      if (v1.currentMonthKey) v2.lastCheckedMonthKey = v1.currentMonthKey;
+      if (v1.lastReminderMonth) v2.lastReminderMonth = v1.lastReminderMonth;
+      return v2;
+    } catch (e) {
+      return null;
+    }
   }
 
   function loadState() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return defaultState();
-      var parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== 'object') return defaultState();
-      return Object.assign(defaultState(), parsed);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return Object.assign(defaultState(), parsed);
+      }
+      return migrateFromV1() || defaultState();
     } catch (e) {
       return defaultState();
     }
@@ -557,37 +743,22 @@
   }
 
   var state = loadState();
+  var editingKey = null; // 'e<id>' (gerçek hareket) veya 'r<id>' (sabit gelir şablonu) — kalıcı değil
 
   function monthlyAmount(plan) { return plan.monthlyAmount; }
   function totalAmount(plan) { return plan.monthlyAmount * plan.months; }
   function isActive(plan) { return plan.paidCount < plan.months; }
 
-  // ---------- month rollover: archive past months automatically ----------
+  // ---------- taksit ilerlemesi: ay değişince otomatik bir taksit sayılır ----------
   function applyRollover() {
     var realMonthKey = monthKeyOf(new Date());
     var guard = 0;
     var changed = false;
 
-    while (state.currentMonthKey !== realMonthKey && guard < 240) {
+    while (state.lastCheckedMonthKey !== realMonthKey && guard < 1200) {
       guard++;
       changed = true;
-      var closingKey = state.currentMonthKey;
-
-      var income = state.entries.filter(function (e) { return e.type === 'income'; })
-        .reduce(function (s, e) { return s + e.amount; }, 0);
-      var expense = state.entries.filter(function (e) { return e.type === 'expense'; })
-        .reduce(function (s, e) { return s + e.amount; }, 0);
-      var activePlans = state.installments.filter(isActive);
-      var instDue = activePlans.reduce(function (s, p) { return s + p.monthlyAmount; }, 0);
-
-      state.history.unshift({
-        monthKey: closingKey,
-        label: monthLabelOf(closingKey),
-        income: income,
-        expense: expense,
-        inst: instDue
-      });
-      if (state.history.length > 36) state.history.length = 36;
+      var closingKey = state.lastCheckedMonthKey;
 
       state.installments.forEach(function (p) {
         if (p.paidCount < p.months && p.lastCountedMonth !== closingKey) {
@@ -596,9 +767,7 @@
         p.lastCountedMonth = closingKey;
       });
 
-      state.entries = [];
-      state.nextEntryId = 1;
-      state.currentMonthKey = nextMonthKey(closingKey);
+      state.lastCheckedMonthKey = nextMonthKey(closingKey);
     }
 
     if (changed) saveState();
@@ -606,13 +775,205 @@
 
   applyRollover();
 
-  document.getElementById('month-label').textContent = monthLabelOf(state.currentMonthKey);
+  document.getElementById('month-label').textContent = monthLabelOf(monthKeyOf(new Date()));
 
-  // ---------- home tab ----------
+  // ---------- sabit (tekrarlayan) gelirlerin sanal örnekleri ----------
+  function recurringInstancesForMonth(monthKey) {
+    var parts = monthKey.split('-');
+    var y = Number(parts[0]), m = Number(parts[1]);
+    var instances = [];
+    state.recurringIncomes.forEach(function (r) {
+      var startMonthKey = r.startDate.slice(0, 7);
+      if (monthKey < startMonthKey) return;
+      var day = Math.min(r.dayOfMonth, daysInMonth(y, m));
+      var dateStr = y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+      instances.push({ date: dateStr, type: 'income', note: r.note, amount: r.amount, recurringId: r.id });
+    });
+    return instances;
+  }
+
+  function entriesForDate(dateStr) {
+    var real = state.entries.filter(function (e) { return e.date === dateStr; });
+    var recurring = recurringInstancesForMonth(dateStr.slice(0, 7)).filter(function (inst) { return inst.date === dateStr; });
+    return real.concat(recurring);
+  }
+
+  function entriesForMonth(monthKey) {
+    var real = state.entries.filter(function (e) { return e.date.slice(0, 7) === monthKey; });
+    var recurring = recurringInstancesForMonth(monthKey);
+    return real.concat(recurring);
+  }
+
+  // ---------- ortak hareket listesi çizimi (Ana Sayfa + Takvim) ----------
+  function buildEntryRowHtml(item) {
+    var key = item.recurringId ? 'r' + item.recurringId : 'e' + item.id;
+
+    if (editingKey === key) {
+      return '<li class="entry-row editing"' +
+        (item.recurringId ? ' data-recurring-id="' + item.recurringId + '"' : ' data-id="' + item.id + '"') + '>' +
+        '<input type="text" class="edit-note" value="' + escapeHtml(item.note) + '" />' +
+        '<input type="number" class="edit-amount" value="' + item.amount + '" />' +
+        '<button type="button" class="row-save">Kaydet</button>' +
+        '<button type="button" class="row-cancel">İptal</button>' +
+        '</li>';
+    }
+
+    if (item.recurringId) {
+      return '<li class="entry-row taksit-row" data-recurring-id="' + item.recurringId + '">' +
+        '<span class="row-badge">Sabit</span>' +
+        '<span class="row-note">' + escapeHtml(item.note || 'Sabit gelir') + '</span>' +
+        '<span class="row-amount positive">+' + formatTRY(item.amount) + '</span>' +
+        '<button type="button" class="row-edit" aria-label="Düzenle">✎</button>' +
+        '<button type="button" class="row-del" aria-label="Sil">×</button>' +
+        '</li>';
+    }
+
+    var sign = item.type === 'income' ? '+' : '-';
+    var cls = item.type === 'income' ? 'positive' : 'negative';
+    return '<li class="entry-row" data-id="' + item.id + '">' +
+      '<span class="row-note">' + escapeHtml(item.note || (item.type === 'income' ? 'Gelir' : 'Gider')) + '</span>' +
+      '<span class="row-amount ' + cls + '">' + sign + formatTRY(item.amount) + '</span>' +
+      '<button type="button" class="row-edit" aria-label="Düzenle">✎</button>' +
+      '<button type="button" class="row-del" aria-label="Sil">×</button>' +
+      '</li>';
+  }
+
+  function renderEntryListInto(listEl, items) {
+    var html = items.map(buildEntryRowHtml).join('');
+    if (!html) html = '<li class="empty-note">Henüz hareket yok.</li>';
+    listEl.innerHTML = html;
+  }
+
+  function handleListClick(ev) {
+    var row = ev.target.closest('.entry-row');
+    if (!row) return;
+    var realId = row.dataset.id !== undefined ? Number(row.dataset.id) : null;
+    var recurringId = row.dataset.recurringId !== undefined ? Number(row.dataset.recurringId) : null;
+
+    if (ev.target.closest('.row-edit')) {
+      editingKey = realId !== null ? 'e' + realId : 'r' + recurringId;
+      rerenderAll();
+    } else if (ev.target.closest('.row-del')) {
+      if (realId !== null) {
+        state.entries = state.entries.filter(function (e) { return e.id !== realId; });
+      } else {
+        state.recurringIncomes = state.recurringIncomes.filter(function (r) { return r.id !== recurringId; });
+      }
+      saveState();
+      rerenderAll();
+    } else if (ev.target.closest('.row-save')) {
+      var noteVal = row.querySelector('.edit-note').value.trim();
+      var amountVal = parseFloat(row.querySelector('.edit-amount').value);
+      if (amountVal > 0) {
+        if (realId !== null) {
+          var entry = state.entries.find(function (e) { return e.id === realId; });
+          if (entry) { entry.note = noteVal; entry.amount = amountVal; }
+        } else {
+          var rec = state.recurringIncomes.find(function (r) { return r.id === recurringId; });
+          if (rec) { rec.note = noteVal; rec.amount = amountVal; }
+        }
+      }
+      editingKey = null;
+      saveState();
+      rerenderAll();
+    } else if (ev.target.closest('.row-cancel')) {
+      editingKey = null;
+      rerenderAll();
+    }
+  }
+
+  document.getElementById('entry-list').addEventListener('click', handleListClick);
+  document.getElementById('cal-day-list').addEventListener('click', handleListClick);
+
+  // ---------- ekleme formu (Ana Sayfa ve Takvim aynı mantığı paylaşır) ----------
+  function setupAddForm(formEl, getDateStr) {
+    var noteInput = formEl.querySelector('.entry-note-input');
+    var amountInput = formEl.querySelector('.entry-amount-input');
+    var recurringCheckbox = formEl.querySelector('.recurring-checkbox');
+    var recurringRow = formEl.querySelector('.recurring-row');
+    var chips = formEl.querySelectorAll('.chip');
+
+    function selectedType() {
+      var active = formEl.querySelector('.chip.active');
+      return active ? active.dataset.type : 'income';
+    }
+
+    function updateRecurringVisibility() {
+      if (recurringRow) recurringRow.hidden = selectedType() !== 'income';
+    }
+
+    chips.forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        chips.forEach(function (c) { c.classList.remove('active'); });
+        chip.classList.add('active');
+        updateRecurringVisibility();
+      });
+    });
+    updateRecurringVisibility();
+
+    formEl.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var amount = parseFloat(amountInput.value);
+      if (!amount || amount <= 0) return;
+      var type = selectedType();
+      var dateStr = getDateStr();
+
+      if (type === 'income' && recurringCheckbox && recurringCheckbox.checked) {
+        var day = Number(dateStr.slice(8, 10));
+        state.recurringIncomes.push({
+          id: state.nextRecurringId++,
+          note: noteInput.value.trim(),
+          amount: amount,
+          dayOfMonth: day,
+          startDate: dateStr
+        });
+        recurringCheckbox.checked = false;
+      } else {
+        state.entries.push({ id: state.nextEntryId++, date: dateStr, type: type, note: noteInput.value.trim(), amount: amount });
+      }
+
+      noteInput.value = '';
+      amountInput.value = '';
+      saveState();
+      rerenderAll();
+    });
+  }
+
+  setupAddForm(document.getElementById('add-form'), function () { return dateStrOf(new Date()); });
+  setupAddForm(document.getElementById('cal-add-form'), function () { return calendarSelectedDate; });
+
+  // ---------- sabit gelirler listesi (Ana Sayfa) ----------
+  function renderFixedIncomes() {
+    var wrap = document.getElementById('fixed-list');
+    var html = '';
+    state.recurringIncomes.forEach(function (r) {
+      html += '<div class="fixed-row">' +
+        '<span class="row-note">' + escapeHtml(r.note || 'Sabit gelir') + '</span>' +
+        '<span class="row-amount positive">+' + formatTRY(r.amount) + '</span>' +
+        '<span class="row-badge">Her ay ' + r.dayOfMonth + '.</span>' +
+        '<button type="button" class="row-del" data-recurring-id="' + r.id + '" aria-label="Durdur">×</button>' +
+        '</div>';
+    });
+    if (!html) html = '<p class="empty-note">Henüz sabit gelir yok. Gelir eklerken "Her ay tekrarla"yı işaretle.</p>';
+    wrap.innerHTML = html;
+  }
+
+  document.getElementById('fixed-list').addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.row-del');
+    if (!btn) return;
+    var id = Number(btn.dataset.recurringId);
+    state.recurringIncomes = state.recurringIncomes.filter(function (r) { return r.id !== id; });
+    saveState();
+    rerenderAll();
+  });
+
+  // ---------- Ana Sayfa ----------
   function renderHome() {
-    var incomeTotal = state.entries.filter(function (e) { return e.type === 'income'; })
+    var monthKey = monthKeyOf(new Date());
+    var monthEntries = entriesForMonth(monthKey);
+    var incomeTotal = monthEntries.filter(function (e) { return e.type === 'income'; })
       .reduce(function (s, e) { return s + e.amount; }, 0);
-    var expenseTotal = state.entries.filter(function (e) { return e.type === 'expense'; })
+    var expenseTotal = monthEntries.filter(function (e) { return e.type === 'expense'; })
       .reduce(function (s, e) { return s + e.amount; }, 0);
     var instDue = state.installments.filter(isActive)
       .reduce(function (s, p) { return s + monthlyAmount(p); }, 0);
@@ -626,96 +987,11 @@
     document.getElementById('home-sub').textContent =
       formatTRY(incomeTotal) + ' gelir − ' + formatTRY(expenseTotal) + ' gider − ' + formatTRY(instDue) + ' taksit';
 
-    var list = document.getElementById('entry-list');
-    var html = '';
-
-    state.installments.filter(isActive).forEach(function (plan) {
-      html += '<li class="entry-row taksit-row">' +
-        '<span class="row-badge">Taksit</span>' +
-        '<span class="row-note">' + escapeHtml(plan.name) + ' (' + (plan.paidCount + 1) + '/' + plan.months + ')</span>' +
-        '<span class="row-amount negative">-' + formatTRY(monthlyAmount(plan)) + '</span>' +
-        '</li>';
-    });
-
-    state.entries.forEach(function (entry) {
-      if (state.editingId === entry.id) {
-        html += '<li class="entry-row editing" data-id="' + entry.id + '">' +
-          '<input type="text" class="edit-note" value="' + escapeHtml(entry.note) + '" />' +
-          '<input type="number" class="edit-amount" value="' + entry.amount + '" />' +
-          '<button type="button" class="row-save">Kaydet</button>' +
-          '<button type="button" class="row-cancel">İptal</button>' +
-          '</li>';
-      } else {
-        var sign = entry.type === 'income' ? '+' : '-';
-        var cls = entry.type === 'income' ? 'positive' : 'negative';
-        html += '<li class="entry-row" data-id="' + entry.id + '">' +
-          '<span class="row-note">' + escapeHtml(entry.note || (entry.type === 'income' ? 'Gelir' : 'Gider')) + '</span>' +
-          '<span class="row-amount ' + cls + '">' + sign + formatTRY(entry.amount) + '</span>' +
-          '<button type="button" class="row-edit" aria-label="Düzenle">✎</button>' +
-          '<button type="button" class="row-del" aria-label="Sil">×</button>' +
-          '</li>';
-      }
-    });
-
-    if (!html) html = '<li class="empty-note">Henüz hareket yok.</li>';
-    list.innerHTML = html;
+    renderFixedIncomes();
+    renderEntryListInto(document.getElementById('entry-list'), entriesForDate(dateStrOf(new Date())));
   }
 
-  document.querySelectorAll('#add-form .chip').forEach(function (chip) {
-    chip.addEventListener('click', function () {
-      document.querySelectorAll('#add-form .chip').forEach(function (c) { c.classList.remove('active'); });
-      chip.classList.add('active');
-    });
-  });
-
-  function selectedEntryType() {
-    var active = document.querySelector('#add-form .chip.active');
-    return active ? active.dataset.type : 'income';
-  }
-
-  document.getElementById('add-form').addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    var amountInput = document.getElementById('entry-amount');
-    var noteInput = document.getElementById('entry-note');
-    var amount = parseFloat(amountInput.value);
-    if (!amount || amount <= 0) return;
-    state.entries.push({ id: state.nextEntryId++, type: selectedEntryType(), note: noteInput.value.trim(), amount: amount });
-    noteInput.value = '';
-    amountInput.value = '';
-    saveState();
-    renderHome();
-  });
-
-  document.getElementById('entry-list').addEventListener('click', function (ev) {
-    var row = ev.target.closest('.entry-row');
-    if (!row) return;
-    var id = Number(row.dataset.id);
-
-    if (ev.target.closest('.row-edit')) {
-      state.editingId = id;
-      renderHome();
-    } else if (ev.target.closest('.row-del')) {
-      state.entries = state.entries.filter(function (e) { return e.id !== id; });
-      saveState();
-      renderHome();
-    } else if (ev.target.closest('.row-save')) {
-      var noteVal = row.querySelector('.edit-note').value.trim();
-      var amountVal = parseFloat(row.querySelector('.edit-amount').value);
-      var entry = state.entries.find(function (e) { return e.id === id; });
-      if (entry && amountVal > 0) {
-        entry.note = noteVal;
-        entry.amount = amountVal;
-      }
-      state.editingId = null;
-      saveState();
-      renderHome();
-    } else if (ev.target.closest('.row-cancel')) {
-      state.editingId = null;
-      renderHome();
-    }
-  });
-
-  // ---------- installments tab ----------
+  // ---------- Taksitler tab ----------
   function renderInstallments() {
     var wrap = document.getElementById('inst-list');
     var html = '';
@@ -753,7 +1029,7 @@
       var plan = state.installments.find(function (p) { return p.id === payId; });
       if (plan && plan.paidCount < plan.months) {
         plan.paidCount++;
-        plan.lastCountedMonth = state.currentMonthKey;
+        plan.lastCountedMonth = monthKeyOf(new Date());
         saveState();
         renderInstallments();
         renderHome();
@@ -789,33 +1065,114 @@
     renderHome();
   });
 
-  // ---------- history tab ----------
-  function renderHistory() {
-    var noteEl = document.getElementById('hist-note');
-    var wrap = document.getElementById('hist-list');
+  // ---------- Takvim tab ----------
+  var calendarViewMonthKey = monthKeyOf(new Date());
+  var calendarSelectedDate = dateStrOf(new Date());
 
-    if (state.history.length === 0) {
-      noteEl.textContent = 'Bir ay tamamlandığında burada otomatik birikmeye başlayacak.';
-      wrap.innerHTML = '';
-      return;
-    }
-
-    noteEl.textContent = 'Geçmiş aylar, her ay bittiğinde kendiliğinden buraya ekleniyor.';
-    var html = '';
-    state.history.forEach(function (m) {
-      var net = m.income - m.expense - m.inst;
-      var cls = net >= 0 ? 'positive' : 'negative';
-      html += '<div class="hist-card">' +
-        '<div class="hist-head"><span>' + escapeHtml(m.label) + '</span>' +
-        '<span class="hist-net ' + cls + '">' + (net >= 0 ? '+' : '') + formatTRY(net) + '</span></div>' +
-        '<span class="hist-sub">' + formatTRY(m.income) + ' gelir − ' + formatTRY(m.expense) + ' gider − ' + formatTRY(m.inst) + ' taksit</span>' +
-        '</div>';
-    });
-    wrap.innerHTML = html;
+  function calendarBounds() {
+    var today = new Date();
+    return {
+      min: monthKeyOf(new Date(today.getFullYear() - 5, today.getMonth(), 1)),
+      max: monthKeyOf(new Date(today.getFullYear() + 5, today.getMonth(), 1))
+    };
   }
 
-  // ---------- tabs ----------
-  var tabIds = { home: 'tab-home', installments: 'tab-installments', history: 'tab-history' };
+  function renderCalendarGrid() {
+    var parts = calendarViewMonthKey.split('-');
+    var y = Number(parts[0]), m = Number(parts[1]);
+    document.getElementById('cal-month-label').textContent = monthLabelOf(calendarViewMonthKey);
+
+    var bounds = calendarBounds();
+    document.getElementById('cal-prev').disabled = calendarViewMonthKey <= bounds.min;
+    document.getElementById('cal-next').disabled = calendarViewMonthKey >= bounds.max;
+
+    var lead = firstWeekdayMonToSun(y, m);
+    var total = daysInMonth(y, m);
+    var todayStr = dateStrOf(new Date());
+
+    var html = '';
+    for (var i = 0; i < lead; i++) html += '<span class="cal-cell empty"></span>';
+
+    for (var day = 1; day <= total; day++) {
+      var dateStr = y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+      var items = entriesForDate(dateStr);
+      var net = items.reduce(function (s, it) { return s + (it.type === 'income' ? it.amount : -it.amount); }, 0);
+      var dotCls = items.length === 0 ? '' : (net > 0 ? 'positive' : (net < 0 ? 'negative' : ''));
+      var classes = 'cal-cell';
+      if (dateStr === todayStr) classes += ' today';
+      if (dateStr === calendarSelectedDate) classes += ' selected';
+      html += '<button type="button" class="' + classes + '" data-date="' + dateStr + '" aria-label="' + day + ' ' + monthLabelOf(calendarViewMonthKey) + '">' +
+        '<span>' + day + '</span>' +
+        (items.length ? '<span class="cal-dot ' + dotCls + '"></span>' : '<span class="cal-dot" style="background:transparent"></span>') +
+        '</button>';
+    }
+
+    var totalCells = lead + total;
+    var trailing = (7 - (totalCells % 7)) % 7;
+    for (var t = 0; t < trailing; t++) html += '<span class="cal-cell empty"></span>';
+
+    document.getElementById('cal-grid').innerHTML = html;
+  }
+
+  function renderCalendarDayDetail() {
+    var d = new Date(calendarSelectedDate + 'T00:00:00');
+    var label = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+    document.getElementById('cal-day-label').textContent = label.charAt(0).toLocaleUpperCase('tr-TR') + label.slice(1);
+    renderEntryListInto(document.getElementById('cal-day-list'), entriesForDate(calendarSelectedDate));
+  }
+
+  function renderCalendar() {
+    renderCalendarGrid();
+    renderCalendarDayDetail();
+  }
+
+  function selectCalendarDate(dateStr) {
+    calendarSelectedDate = dateStr;
+    calendarViewMonthKey = dateStr.slice(0, 7);
+    renderCalendar();
+  }
+
+  function navigateCalendarMonth(delta) {
+    var bounds = calendarBounds();
+    var target = delta > 0 ? nextMonthKey(calendarViewMonthKey) : prevMonthKey(calendarViewMonthKey);
+    if (target < bounds.min || target > bounds.max) return;
+    calendarViewMonthKey = target;
+    renderCalendarGrid();
+  }
+
+  document.getElementById('cal-grid').addEventListener('click', function (ev) {
+    var cell = ev.target.closest('.cal-cell[data-date]');
+    if (!cell) return;
+    selectCalendarDate(cell.dataset.date);
+  });
+
+  document.getElementById('cal-prev').addEventListener('click', function () { navigateCalendarMonth(-1); });
+  document.getElementById('cal-next').addEventListener('click', function () { navigateCalendarMonth(1); });
+  document.getElementById('cal-today-btn').addEventListener('click', function () {
+    selectCalendarDate(dateStrOf(new Date()));
+  });
+
+  (function setupSwipe() {
+    var startX = null, startY = null;
+    var wrap = document.getElementById('cal-grid-wrap');
+    wrap.addEventListener('touchstart', function (ev) {
+      if (ev.touches.length !== 1) return;
+      startX = ev.touches[0].clientX;
+      startY = ev.touches[0].clientY;
+    }, { passive: true });
+    wrap.addEventListener('touchend', function (ev) {
+      if (startX === null) return;
+      var dx = ev.changedTouches[0].clientX - startX;
+      var dy = ev.changedTouches[0].clientY - startY;
+      startX = null; startY = null;
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        navigateCalendarMonth(dx < 0 ? 1 : -1);
+      }
+    }, { passive: true });
+  })();
+
+  // ---------- sekmeler ----------
+  var tabIds = { home: 'tab-home', installments: 'tab-installments', calendar: 'tab-calendar' };
 
   document.querySelectorAll('.tab-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -828,7 +1185,13 @@
     });
   });
 
-  // ---------- notifications (best-effort; real push needs the Android app) ----------
+  function rerenderAll() {
+    renderHome();
+    renderInstallments();
+    renderCalendar();
+  }
+
+  // ---------- bildirimler (best-effort; gerçek arka plan bildirimi Android uygulamasında) ----------
   var swRegistration = null;
   var NOTIF_SUPPORTED = ('Notification' in window);
   var bannerTimer = null;
@@ -886,10 +1249,11 @@
   function maybeShowMonthEndReminder() {
     var day = new Date().getDate();
     if (day < 20) return;
-    if (state.lastReminderMonth === state.currentMonthKey) return;
+    var currentMonthKey = monthKeyOf(new Date());
+    if (state.lastReminderMonth === currentMonthKey) return;
     var activePlans = state.installments.filter(isActive);
     if (activePlans.length === 0) return;
-    state.lastReminderMonth = state.currentMonthKey;
+    state.lastReminderMonth = currentMonthKey;
     saveState();
     fireReminder(activeSummaryText());
   }
@@ -903,7 +1267,7 @@
   // ---------- init ----------
   renderHome();
   renderInstallments();
-  renderHistory();
+  renderCalendar();
   setTimeout(maybeShowMonthEndReminder, 900);
 </script>
 </body>
